@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Security rules for the volleyball club app.
+// Model: every user has a profile doc (users/{uid}) with a `teamId` and `role`.
+// All team data (practices, tactics, journals) is readable by team members and
+// writable per role (coach can manage; everyone can post their own journal).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function myProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function myTeam() {
+      return signedIn() ? myProfile().teamId : null;
+    }
+    function sameTeam(teamId) {
+      return signedIn() && myTeam() == teamId;
+    }
+    function isCoachOf(teamId) {
+      return sameTeam(teamId) && myProfile().role == 'coach';
+    }
+
+    match /users/{uid} {
+      // Team members can see each other (member list, journal author names).
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+      allow delete: if false;
+    }
+
+    match /teams/{teamId} {
+      // Readable so a joining user can look up a team by its invite code.
+      allow read: if signedIn();
+      allow create: if signedIn()
+                    && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isCoachOf(teamId);
+    }
+
+    match /practices/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if isCoachOf(request.resource.data.teamId);
+      allow update, delete: if isCoachOf(resource.data.teamId);
+    }
+
+    match /tactics/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if isCoachOf(request.resource.data.teamId);
+      allow update, delete: if isCoachOf(resource.data.teamId);
+    }
+
+    match /journals/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if sameTeam(request.resource.data.teamId)
+                    && request.resource.data.authorId == request.auth.uid;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
+    }
+  }
+}
