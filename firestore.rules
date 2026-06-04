@@ -58,5 +58,22 @@ service cloud.firestore {
       allow update: if false;
       allow delete: if signedIn() && resource.data.authorId == request.auth.uid;
     }
+
+    match /requests/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if sameTeam(request.resource.data.teamId)
+                    && request.resource.data.authorId == request.auth.uid;
+      // Any team member may toggle votes (voters field only);
+      // a coach may change the status. No other edits allowed.
+      allow update: if sameTeam(resource.data.teamId) && (
+                      request.resource.data.diff(resource.data)
+                        .affectedKeys().hasOnly(['voters'])
+                      || (isCoachOf(resource.data.teamId)
+                          && request.resource.data.diff(resource.data)
+                              .affectedKeys().hasOnly(['status']))
+                    );
+      allow delete: if isCoachOf(resource.data.teamId)
+                    || (signedIn() && resource.data.authorId == request.auth.uid);
+    }
   }
 }

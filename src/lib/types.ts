@@ -95,3 +95,34 @@ export interface JournalEntry {
   content: string;
   createdAt?: number;
 }
+
+/** Category for the request / sharing board (機能④). */
+export type RequestCategory = "feature" | "share" | "other";
+
+export const REQUEST_CATEGORY_LABELS: Record<RequestCategory, string> = {
+  feature: "機能リクエスト",
+  share: "情報共有",
+  other: "その他",
+};
+
+export type RequestStatus = "open" | "planned" | "done";
+
+export const REQUEST_STATUS_LABELS: Record<RequestStatus, string> = {
+  open: "受付中",
+  planned: "対応予定",
+  done: "対応済み",
+};
+
+/** A request/idea that members can post and upvote (要望・投票). */
+export interface FeatureRequest {
+  id: string;
+  teamId: string;
+  title: string;
+  description: string;
+  category: RequestCategory;
+  status: RequestStatus;
+  authorId: string;
+  authorName: string;
+  voters: string[]; // uids who upvoted
+  createdAt?: number;
+}

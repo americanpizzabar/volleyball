@@ -1,6 +1,8 @@
 // Firestore data-access helpers. Keeps collection paths and shapes in one place.
 import {
   addDoc,
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   doc,
@@ -17,8 +19,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./config";
 import type {
+  FeatureRequest,
   JournalEntry,
   Practice,
+  RequestStatus,
   Role,
   Tactic,
   Team,
@@ -167,6 +171,48 @@ export async function deleteJournal(id: string): Promise<void> {
 export function journalsQuery(teamId: string) {
   return query(
     collection(db, "journals"),
+    where("teamId", "==", teamId),
+    orderBy("createdAt", "desc"),
+  );
+}
+
+// ---- Feature requests / sharing board ----------------------------------
+
+export async function createRequest(
+  data: Omit<FeatureRequest, "id" | "createdAt">,
+): Promise<string> {
+  const ref = await addDoc(collection(db, "requests"), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+/** Toggle the current user's upvote on a request. */
+export async function toggleVote(
+  id: string,
+  uid: string,
+  hasVoted: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, "requests", id), {
+    voters: hasVoted ? arrayRemove(uid) : arrayUnion(uid),
+  });
+}
+
+export async function setRequestStatus(
+  id: string,
+  status: RequestStatus,
+): Promise<void> {
+  await updateDoc(doc(db, "requests", id), { status });
+}
+
+export async function deleteRequest(id: string): Promise<void> {
+  await deleteDoc(doc(db, "requests", id));
+}
+
+export function requestsQuery(teamId: string) {
+  return query(
+    collection(db, "requests"),
     where("teamId", "==", teamId),
     orderBy("createdAt", "desc"),
   );
