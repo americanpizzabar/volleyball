@@ -12,6 +12,7 @@ export default function Dashboard() {
   const { profile, team } = useAuth();
   const teamId = profile?.teamId ?? null;
   const isCoach = profile?.role === "coach";
+  const isStaff = isCoach || profile?.role === "manager";
 
   const { data: practices, loading } = useCollection<Practice>(
     () => (teamId ? practicesQuery(teamId, limit(1)) : null),
@@ -82,6 +83,7 @@ export default function Dashboard() {
             <QuickAction href="/app/tactics/new" emoji="🏐" label="ローテ図作成" />
           </>
         )}
+        {isStaff && <QuickAction href="/app/stats" emoji="📊" label="スタッツ記録" />}
         <QuickAction href="/app/tactics" emoji="🎬" label="ローテを予習" />
         <QuickAction href="/app/journal/new" emoji="✍️" label="日誌を書く" />
         <QuickAction href="/app/requests" emoji="💡" label="要望・投票" />

@@ -11,15 +11,21 @@ interface NavItem {
   href: string;
   label: string;
   icon: ReactNode;
+  /** Extra path prefixes that should also highlight this tab. */
+  match?: string[];
 }
 
 const NAV: NavItem[] = [
   { href: "/app", label: "ホーム", icon: <IconHome /> },
   { href: "/app/practices", label: "メニュー", icon: <IconClipboard /> },
   { href: "/app/tactics", label: "ローテ", icon: <IconBoard /> },
-  { href: "/app/journal", label: "日誌", icon: <IconBook /> },
-  { href: "/app/requests", label: "要望", icon: <IconBulb /> },
-  { href: "/app/profile", label: "設定", icon: <IconUser /> },
+  { href: "/app/stats", label: "スタッツ", icon: <IconChart /> },
+  {
+    href: "/app/more",
+    label: "もっと",
+    icon: <IconGrid />,
+    match: ["/app/journal", "/app/requests", "/app/profile"],
+  },
 ];
 
 /**
@@ -66,12 +72,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <main className="flex-1 px-4 py-5 pb-24">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-slate-200 bg-white/95 backdrop-blur">
-        <ul className="grid grid-cols-6">
+        <ul className="grid grid-cols-5">
           {NAV.map((item) => {
             const active =
               item.href === "/app"
                 ? pathname === "/app"
-                : pathname.startsWith(item.href);
+                : pathname.startsWith(item.href) ||
+                  (item.match?.some((m) => pathname.startsWith(m)) ?? false);
             return (
               <li key={item.href}>
                 <Link
@@ -128,24 +135,17 @@ function IconBoard() {
     </svg>
   );
 }
-function IconBook() {
+function IconChart() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5.5A1.5 1.5 0 0 0 4 21.5z" /><path d="M4 19.5A1.5 1.5 0 0 1 5.5 18H20" />
+      <path d="M4 20V4" /><path d="M4 20h16" /><rect x="7" y="11" width="3" height="6" rx="0.5" /><rect x="12.5" y="7" width="3" height="10" rx="0.5" /><rect x="18" y="13" width="3" height="4" rx="0.5" />
     </svg>
   );
 }
-function IconBulb() {
+function IconGrid() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 18h6" /><path d="M10 21h4" /><path d="M12 3a6 6 0 0 0-4 10.5c.5.5 1 1.3 1 2.5h6c0-1.2.5-2 1-2.5A6 6 0 0 0 12 3z" />
-    </svg>
-  );
-}
-function IconUser() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+      <circle cx="5" cy="5" r="1.5" /><circle cx="12" cy="5" r="1.5" /><circle cx="19" cy="5" r="1.5" /><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
     </svg>
   );
 }

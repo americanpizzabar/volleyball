@@ -22,6 +22,10 @@ service cloud.firestore {
     function isCoachOf(teamId) {
       return sameTeam(teamId) && myProfile().role == 'coach';
     }
+    // Coach or manager — the people who run scoring / matches.
+    function isStaffOf(teamId) {
+      return sameTeam(teamId) && myProfile().role in ['coach', 'manager'];
+    }
 
     match /users/{uid} {
       // Team members can see each other (member list, journal author names).
@@ -74,6 +78,20 @@ service cloud.firestore {
                     );
       allow delete: if isCoachOf(resource.data.teamId)
                     || (signedIn() && resource.data.authorId == request.auth.uid);
+    }
+
+    // 機能② スタッツ：試合は顧問・マネージャーが管理し記録する。
+    match /matches/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if isStaffOf(request.resource.data.teamId);
+      allow update, delete: if isStaffOf(resource.data.teamId);
+    }
+
+    match /stats/{id} {
+      allow read: if sameTeam(resource.data.teamId);
+      allow create: if isStaffOf(request.resource.data.teamId);
+      allow update: if false;
+      allow delete: if isStaffOf(resource.data.teamId);
     }
   }
 }

@@ -126,3 +126,17 @@ export interface FeatureRequest {
   voters: string[]; // uids who upvoted
   createdAt?: number;
 }
+
+/** A match whose stats are being recorded (機能②). */
+export interface Match {
+  id: string;
+  teamId: string;
+  opponent: string;
+  date: string; // YYYY-MM-DD
+  tournament: string; // 大会名 (任意)
+  status: "live" | "finished";
+  currentSet: number; // 1-5
+  sets: { us: number; them: number }[]; // index 0 = 第1セット
+  createdBy: string;
+  createdAt?: number;
+}

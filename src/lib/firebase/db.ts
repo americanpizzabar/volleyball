@@ -21,12 +21,14 @@ import { db } from "./config";
 import type {
   FeatureRequest,
   JournalEntry,
+  Match,
   Practice,
   RequestStatus,
   Role,
   Tactic,
   Team,
 } from "@/lib/types";
+import type { Skill, StatEvent } from "@/lib/stats";
 
 function randomInviteCode(): string {
   // 6-char human-friendly code (no ambiguous chars).
@@ -217,3 +219,64 @@ export function requestsQuery(teamId: string) {
     orderBy("createdAt", "desc"),
   );
 }
+
+// ---- Matches & stats (機能②) -------------------------------------------
+
+export async function createMatch(
+  data: Omit<Match, "id" | "createdAt">,
+): Promise<string> {
+  const ref = await addDoc(collection(db, "matches"), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateMatch(
+  id: string,
+  data: Partial<Omit<Match, "id" | "teamId">>,
+): Promise<void> {
+  await updateDoc(doc(db, "matches", id), data);
+}
+
+export async function deleteMatch(id: string): Promise<void> {
+  await deleteDoc(doc(db, "matches", id));
+}
+
+export function matchesQuery(teamId: string) {
+  // Single-field filter (auto-indexed); ordering is done client-side.
+  return query(collection(db, "matches"), where("teamId", "==", teamId));
+}
+
+/** Record one stat event (the result of a 3-tap entry). */
+export async function recordStat(data: {
+  teamId: string;
+  matchId: string;
+  set: number;
+  playerId: string;
+  playerName: string;
+  jersey: number | null;
+  skill: Skill;
+  result: string;
+}): Promise<void> {
+  await addDoc(collection(db, "stats"), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function deleteStat(id: string): Promise<void> {
+  await deleteDoc(doc(db, "stats", id));
+}
+
+/** Events for a single match (sorted client-side). */
+export function matchStatsQuery(matchId: string) {
+  return query(collection(db, "stats"), where("matchId", "==", matchId));
+}
+
+/** All events for a team, for the cumulative leaderboard. */
+export function teamStatsQuery(teamId: string) {
+  return query(collection(db, "stats"), where("teamId", "==", teamId));
+}
+
+export type { StatEvent };
