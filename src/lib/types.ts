@@ -140,3 +140,58 @@ export interface Match {
   createdBy: string;
   createdAt?: number;
 }
+
+/** Per-member skill-check sheet (機能③ ポジション別スキルチェック). */
+export interface SkillSheet {
+  id: string; // = userId
+  teamId: string;
+  userId: string;
+  self: Record<string, number>; // skillKey -> 1..5 (本人)
+  coach: Record<string, number>; // skillKey -> 1..5 (指導者)
+  updatedAt?: number;
+}
+
+export interface VideoComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  at: number;
+}
+
+/** Growth-record video (機能③ 動画付き成長記録). */
+export interface GrowthVideo {
+  id: string;
+  teamId: string;
+  userId: string;
+  userName: string;
+  title: string;
+  skillTag: string; // 自由タグ（例: サーブフォーム）
+  url: string;
+  storagePath: string;
+  comments: VideoComment[]; // 顧問からのワンポイント等
+  createdAt?: number;
+}
+
+export type GoalStatus = "active" | "done" | "dropped";
+
+export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
+  active: "挑戦中",
+  done: "達成",
+  dropped: "見直し",
+};
+
+/** Personal goal with PDCA (機能③ 目標設定). */
+export interface Goal {
+  id: string;
+  teamId: string;
+  userId: string;
+  userName: string;
+  title: string; // 目標 (Plan)
+  metric: string; // 達成基準・指標
+  practiceIds: string[]; // 紐づく練習メニュー (Do)
+  dueDate: string; // 期限 YYYY-MM-DD
+  reflection: string; // 振り返り (Check)
+  status: GoalStatus; // (Act)
+  createdAt?: number;
+}

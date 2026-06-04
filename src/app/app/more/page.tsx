@@ -6,6 +6,7 @@ import { ROLE_LABELS } from "@/lib/types";
 import { PageHeader } from "@/components/ui";
 
 const LINKS = [
+  { href: "/app/portfolio", emoji: "📈", label: "ポートフォリオ", desc: "スキルチェック・動画・目標(PDCA)" },
   { href: "/app/journal", emoji: "✍️", label: "振り返り日誌", desc: "練習の反省・コンディション記録" },
   { href: "/app/requests", emoji: "💡", label: "要望・情報共有", desc: "欲しい機能をリクエスト＆投票" },
   { href: "/app/stats/totals", emoji: "🏆", label: "通算成績", desc: "個人・チームの累計スタッツ" },
@@ -34,13 +35,6 @@ export default function MorePage() {
             <span className="text-2xl text-slate-300">›</span>
           </Link>
         ))}
-      </div>
-
-      <div className="card mt-4 bg-slate-50 ring-slate-100">
-        <p className="text-xs font-semibold text-slate-500">今後の機能</p>
-        <p className="mt-1 text-sm text-slate-600">
-          📈 バレー・ポートフォリオ（スキルチェック・動画成長記録）を準備中です。
-        </p>
       </div>
 
       {profile && (

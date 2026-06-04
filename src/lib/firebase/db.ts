@@ -17,9 +17,18 @@ import {
   where,
   type QueryConstraint,
 } from "firebase/firestore";
-import { db } from "./config";
+import {
+  getDownloadURL,
+  ref as storageRef,
+  uploadBytes,
+  deleteObject,
+} from "firebase/storage";
+import { db, storage } from "./config";
 import type {
   FeatureRequest,
+  Goal,
+  GoalStatus,
+  GrowthVideo,
   JournalEntry,
   Match,
   Practice,
@@ -27,6 +36,7 @@ import type {
   Role,
   Tactic,
   Team,
+  VideoComment,
 } from "@/lib/types";
 import type { Skill, StatEvent } from "@/lib/stats";
 
@@ -280,3 +290,106 @@ export function teamStatsQuery(teamId: string) {
 }
 
 export type { StatEvent };
+
+// ---- Portfolio: skill sheets (機能③) -----------------------------------
+
+/** Set one self/coach rating. Doc id is the member's uid; maps deep-merge. */
+export async function setRating(
+  userId: string,
+  teamId: string,
+  side: "self" | "coach",
+  skillKey: string,
+  value: number,
+): Promise<void> {
+  await setDoc(
+    doc(db, "skillSheets", userId),
+    {
+      teamId,
+      userId,
+      [side]: { [skillKey]: value },
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+// ---- Portfolio: growth videos ------------------------------------------
+
+/** Upload a video file to Storage; returns its public URL + path. */
+export async function uploadVideo(
+  file: File,
+  teamId: string,
+  userId: string,
+): Promise<{ url: string; path: string }> {
+  const safe = file.name.replace(/[^\w.-]/g, "_");
+  const path = `videos/${teamId}/${userId}/${Date.now()}_${safe}`;
+  const r = storageRef(storage, path);
+  await uploadBytes(r, file);
+  const url = await getDownloadURL(r);
+  return { url, path };
+}
+
+export async function createVideo(
+  data: Omit<GrowthVideo, "id" | "createdAt">,
+): Promise<string> {
+  const ref = await addDoc(collection(db, "videos"), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function addVideoComment(
+  videoId: string,
+  comment: VideoComment,
+): Promise<void> {
+  await updateDoc(doc(db, "videos", videoId), {
+    comments: arrayUnion(comment),
+  });
+}
+
+export async function deleteVideo(video: GrowthVideo): Promise<void> {
+  await deleteDoc(doc(db, "videos", video.id));
+  if (video.storagePath) {
+    try {
+      await deleteObject(storageRef(storage, video.storagePath));
+    } catch {
+      // file may already be gone — ignore
+    }
+  }
+}
+
+export function videosByUserQuery(userId: string) {
+  return query(collection(db, "videos"), where("userId", "==", userId));
+}
+
+// ---- Portfolio: goals (PDCA) -------------------------------------------
+
+export async function createGoal(
+  data: Omit<Goal, "id" | "createdAt">,
+): Promise<string> {
+  const ref = await addDoc(collection(db, "goals"), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateGoal(
+  id: string,
+  data: Partial<Omit<Goal, "id" | "teamId" | "userId">>,
+): Promise<void> {
+  await updateDoc(doc(db, "goals", id), data);
+}
+
+export async function setGoalStatus(id: string, status: GoalStatus): Promise<void> {
+  await updateDoc(doc(db, "goals", id), { status });
+}
+
+export async function deleteGoal(id: string): Promise<void> {
+  await deleteDoc(doc(db, "goals", id));
+}
+
+export function goalsByUserQuery(userId: string) {
+  return query(collection(db, "goals"), where("userId", "==", userId));
+}

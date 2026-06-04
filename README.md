@@ -23,12 +23,18 @@
 - **通算成績ランキング**：エース王・スパイク決定数・決定率・レセプション返球率などを全試合横断で集計
 - 記録は顧問・マネージャー、閲覧は部員全員
 
+### 機能③ バレー・ポートフォリオ
+- **ポジション別スキルチェック**：共通＋ポジション別スキルを5段階で**自己評価＆指導者評価**（並べて比較）
+- **動画付き成長記録**：フォーム動画をアップロード（Firebase Storage）、過去と並べて比較。顧問の**ワンポイントアドバイス**コメント
+- **目標設定（PDCA）**：目標(Plan)・達成基準・期限を設定し、**関連する練習メニューを紐付け(Do)**、振り返り(Check)・ステータス(Act)を管理
+- 顧問はメンバーを選んで評価・閲覧できる
+
 ### 機能④ 要望・情報共有ボード
 - 部員が「欲しい機能」「情報共有」「その他」を投稿し、**投票（▲）** できる
 - 投票数の多い順に並び替え、カテゴリでフィルタ
 - 顧問はステータス（受付中／対応予定／対応済み）を変更可能
 
-> 機能③ バレー・ポートフォリオ（スキルチェック・動画成長記録）は今後の実装予定です。
+🎉 仕様の4機能すべてを実装しました。
 
 ## セットアップ
 
@@ -36,7 +42,8 @@
 1. [Firebase コンソール](https://console.firebase.google.com/) でプロジェクトを作成
 2. **Authentication** → ログイン方法 → **メール/パスワード** を有効化
 3. **Firestore Database** を作成（本番モードで開始）
-4. プロジェクト設定 → マイアプリ → **ウェブアプリ** を追加し、表示される config の値を控える
+4. **Storage** を有効化（機能③の動画アップロードに使用）
+5. プロジェクト設定 → マイアプリ → **ウェブアプリ** を追加し、表示される config の値を控える
 
 ### 2. 環境変数
 `.env.local.example` を `.env.local` にコピーして、Firebase の値を入力します。
@@ -63,10 +70,11 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 npm install -g firebase-tools
 firebase login
 firebase use your-project        # または firebase init で紐付け
-firebase deploy --only firestore:rules,firestore:indexes
+firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
 > インデックスはコンソールに表示されるエラーリンクからも作成できます。
+> 動画アップロードには Storage のルール（`storage.rules`）の反映が必要です。
 
 ### 4. ローカル起動
 
@@ -98,6 +106,7 @@ src/
       practices/           練習メニュー（今日のテーマと意図）
       tactics/             ローテ図・アニメーション
       stats/               スタッツ（試合・3タップ記録・集計・通算）
+      portfolio/           ポートフォリオ（スキル・動画・目標PDCA）
       journal/             振り返り日誌
       requests/            要望・情報共有ボード（投票）
       more/                その他機能のハブ
@@ -111,12 +120,13 @@ src/
     firebase/              初期化・データアクセス・購読フック
     court.ts               コート座標・ローテ補間
     types.ts               ドメイン型
-firestore.rules            セキュリティルール
+firestore.rules            Firestore セキュリティルール
 firestore.indexes.json     複合インデックス
+storage.rules              Storage セキュリティルール（動画）
 ```
 
 ## 技術スタック
 - Next.js 16 (App Router, Turbopack)
 - React 19
 - Tailwind CSS v4
-- Firebase (Auth, Firestore) — クライアントSDK
+- Firebase (Auth, Firestore, Storage) — クライアントSDK

@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Storage rules for growth-record videos (機能③).
+// Path: videos/{teamId}/{userId}/{file}
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /videos/{teamId}/{userId}/{file=**} {
+      // Any signed-in user can view (download URLs carry an unguessable token).
+      allow read: if request.auth != null;
+      // Only the owner may upload, and only reasonably-sized video files.
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.size < 200 * 1024 * 1024
+                   && request.resource.contentType.matches('video/.*');
+      // Owner or any signed-in staff cleanup.
+      allow delete: if request.auth != null;
+    }
+  }
+}
