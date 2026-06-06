@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { journalsQuery, practicesQuery } from "@/lib/firebase/db";
-import { limit } from "firebase/firestore";
+import { useCollection } from "@/lib/useCollection";
+import { journalsQuery, practicesQuery } from "@/lib/db";
 import type { JournalEntry, Practice } from "@/lib/types";
 import { FullScreenLoader } from "@/components/ui";
 
@@ -15,7 +14,7 @@ export default function Dashboard() {
   const isStaff = isCoach || profile?.role === "manager";
 
   const { data: practices, loading } = useCollection<Practice>(
-    () => (teamId ? practicesQuery(teamId, limit(1)) : null),
+    () => (teamId ? practicesQuery(teamId, 1) : null),
     [teamId],
   );
   const { data: journals } = useCollection<JournalEntry>(

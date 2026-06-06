@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useCollection } from "@/lib/firebase/useCollection";
+import { useCollection } from "@/lib/useCollection";
 import {
   addVideoComment,
   createVideo,
   deleteVideo,
   uploadVideo,
   videosByUserQuery,
-} from "@/lib/firebase/db";
+} from "@/lib/db";
 import { cryptoId } from "@/lib/court";
 import type { GrowthVideo } from "@/lib/types";
 import { EmptyState, Spinner } from "../ui";
@@ -75,7 +75,7 @@ export default function VideoSection({
       setTitle("");
       setTag("");
     } catch {
-      setError("アップロードに失敗しました。Firebase Storageの設定をご確認ください。");
+      setError("アップロードに失敗しました。Supabase Storageの設定をご確認ください。");
     }
     setBusy(false);
   }

@@ -4,16 +4,17 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useDoc } from "@/lib/firebase/useDoc";
-import { useCollection } from "@/lib/firebase/useCollection";
+import { useDoc } from "@/lib/useDoc";
+import { useCollection } from "@/lib/useCollection";
 import {
   deleteMatch,
   deleteStat,
   getTeamMembers,
+  mapMatch,
   matchStatsQuery,
   recordStat,
   updateMatch,
-} from "@/lib/firebase/db";
+} from "@/lib/db";
 import StatRecorder, { type RosterPlayer } from "@/components/stats/StatRecorder";
 import StatsTable from "@/components/stats/StatsTable";
 import { aggregate, resultLabel, SKILL_LABELS, type StatEvent } from "@/lib/stats";
@@ -26,7 +27,7 @@ export default function MatchPage() {
   const { profile } = useAuth();
   const isStaff = profile?.role === "coach" || profile?.role === "manager";
 
-  const { data: match, loading } = useDoc<Match>("matches", params.id);
+  const { data: match, loading } = useDoc<Match>("matches", params.id, mapMatch);
   const { data: events } = useCollection<StatEvent>(
     () => matchStatsQuery(params.id),
     [params.id],

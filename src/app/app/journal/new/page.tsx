@@ -3,8 +3,8 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { createJournal, practicesQuery } from "@/lib/firebase/db";
+import { useCollection } from "@/lib/useCollection";
+import { createJournal, practicesQuery } from "@/lib/db";
 import type { Practice } from "@/lib/types";
 import { FullScreenLoader, PageHeader, Spinner } from "@/components/ui";
 

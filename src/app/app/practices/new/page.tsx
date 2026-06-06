@@ -3,8 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { createPractice, tacticsQuery } from "@/lib/firebase/db";
+import { useCollection } from "@/lib/useCollection";
+import { createPractice, tacticsQuery } from "@/lib/db";
 import type { Tactic } from "@/lib/types";
 import { PageHeader, Spinner } from "@/components/ui";
 

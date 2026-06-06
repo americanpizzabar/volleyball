@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { deleteJournal, journalsQuery } from "@/lib/firebase/db";
+import { useCollection } from "@/lib/useCollection";
+import { deleteJournal, journalsQuery } from "@/lib/db";
 import type { JournalEntry } from "@/lib/types";
 import { ConditionBadge, EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 

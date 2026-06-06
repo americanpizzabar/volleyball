@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { practicesQuery } from "@/lib/firebase/db";
+import { useCollection } from "@/lib/useCollection";
+import { practicesQuery } from "@/lib/db";
 import type { Practice } from "@/lib/types";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 

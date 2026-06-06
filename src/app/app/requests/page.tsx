@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
+import { useCollection } from "@/lib/useCollection";
 import {
   deleteRequest,
   requestsQuery,
   setRequestStatus,
   toggleVote,
-} from "@/lib/firebase/db";
+} from "@/lib/db";
 import {
   REQUEST_CATEGORY_LABELS,
   REQUEST_STATUS_LABELS,

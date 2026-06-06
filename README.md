@@ -25,7 +25,7 @@
 
 ### 機能③ バレー・ポートフォリオ
 - **ポジション別スキルチェック**：共通＋ポジション別スキルを5段階で**自己評価＆指導者評価**（並べて比較）
-- **動画付き成長記録**：フォーム動画をアップロード（Firebase Storage）、過去と並べて比較。顧問の**ワンポイントアドバイス**コメント
+- **動画付き成長記録**：フォーム動画をアップロード（Supabase Storage）、過去と並べて比較。顧問の**ワンポイントアドバイス**コメント
 - **目標設定（PDCA）**：目標(Plan)・達成基準・期限を設定し、**関連する練習メニューを紐付け(Do)**、振り返り(Check)・ステータス(Act)を管理
 - 顧問はメンバーを選んで評価・閲覧できる
 
@@ -36,47 +36,33 @@
 
 🎉 仕様の4機能すべてを実装しました。
 
-## セットアップ
+## セットアップ（Supabase）
 
-### 1. Firebase プロジェクトを作る
-1. [Firebase コンソール](https://console.firebase.google.com/) でプロジェクトを作成
-2. **Authentication** → ログイン方法 → **メール/パスワード** を有効化
-3. **Firestore Database** を作成（本番モードで開始）
-4. **Storage** を有効化（機能③の動画アップロードに使用）
-5. プロジェクト設定 → マイアプリ → **ウェブアプリ** を追加し、表示される config の値を控える
+### 1. Supabase プロジェクト
+1. [Supabase ダッシュボード](https://supabase.com/dashboard) でプロジェクトを作成
+2. **Authentication → Providers → Email** を有効化
+   - すぐにログインして使えるようにするには **「Confirm email」を OFF** にするのがおすすめ
+     （ON のままにすると新規登録後に確認メールのクリックが必要です）
+3. **SQL Editor** で `supabase/migrations/0001_init.sql` を実行
+   （テーブル・RLS・Storageバケット・自動プロフィール作成トリガー・Realtime をまとめて作成）
+   - もしくは Supabase CLI: `supabase db push`
 
 ### 2. 環境変数
-`.env.local.example` を `.env.local` にコピーして、Firebase の値を入力します。
+`.env.local.example` を `.env.local` にコピーして、Supabase の値を入力します。
+値は **Project Settings → API** で確認できます。
 
 ```bash
 cp .env.local.example .env.local
 ```
 
 ```
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR-PUBLISHABLE-OR-ANON-KEY
 ```
 
-これらは公開値（ブラウザに配信）です。データ保護は `firestore.rules` のセキュリティルールで担保します。
+これらは公開値（ブラウザに配信）です。データ保護は Postgres の **RLS ポリシー** で担保します。
 
-### 3. Firestore のルールとインデックスを反映
-[Firebase CLI](https://firebase.google.com/docs/cli) を使います。
-
-```bash
-npm install -g firebase-tools
-firebase login
-firebase use your-project        # または firebase init で紐付け
-firebase deploy --only firestore:rules,firestore:indexes,storage
-```
-
-> インデックスはコンソールに表示されるエラーリンクからも作成できます。
-> 動画アップロードには Storage のルール（`storage.rules`）の反映が必要です。
-
-### 4. ローカル起動
+### 3. ローカル起動
 
 ```bash
 npm install
@@ -85,9 +71,9 @@ npm run dev
 ```
 
 ## Vercel へのデプロイ
-1. このリポジトリを Vercel にインポート
-2. **Environment Variables** に上記 `NEXT_PUBLIC_FIREBASE_*` をすべて設定
-3. Firebase コンソール → Authentication → Settings → 承認済みドメインに Vercel のドメインを追加
+1. このリポジトリを Vercel にインポート（または Git 連携で自動デプロイ）
+2. **Environment Variables** に `NEXT_PUBLIC_SUPABASE_URL` と `NEXT_PUBLIC_SUPABASE_ANON_KEY` を設定
+3. Supabase の **Authentication → URL Configuration** に Vercel のドメインを追加
 4. デプロイ
 
 ## 使い方
@@ -114,19 +100,21 @@ src/
   components/
     AppShell.tsx           ヘッダー＋ボトムナビ＋認証ガード
     tactics/               CourtCanvas / TacticViewer / TacticEditor
+    stats/ portfolio/      各機能のコンポーネント
     ui.tsx                 共有UI
-  context/AuthContext.tsx  認証・プロフィール・チームの購読
+  context/AuthContext.tsx  Supabase 認証・プロフィール・チームの購読
   lib/
-    firebase/              初期化・データアクセス・購読フック
-    court.ts               コート座標・ローテ補間
+    supabase/client.ts     Supabase クライアント初期化
+    db.ts                  データアクセス（行↔型マッピング・クエリ）
+    useCollection.ts       一覧購読フック（fetch + Realtime）
+    useDoc.ts              単一行購読フック
+    court.ts stats.ts skills.ts  ドメインロジック
     types.ts               ドメイン型
-firestore.rules            Firestore セキュリティルール
-firestore.indexes.json     複合インデックス
-storage.rules              Storage セキュリティルール（動画）
+supabase/migrations/       スキーマ・RLS・Storage・Realtime（SQL）
 ```
 
 ## 技術スタック
 - Next.js 16 (App Router, Turbopack)
 - React 19
 - Tailwind CSS v4
-- Firebase (Auth, Firestore, Storage) — クライアントSDK
+- Supabase (Auth, Postgres + RLS, Storage, Realtime)

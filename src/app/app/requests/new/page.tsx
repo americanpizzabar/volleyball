@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { createRequest } from "@/lib/firebase/db";
+import { createRequest } from "@/lib/db";
 import {
   REQUEST_CATEGORY_LABELS,
   type RequestCategory,

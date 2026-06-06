@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { createMatch } from "@/lib/firebase/db";
+import { createMatch } from "@/lib/db";
 import { PageHeader, Spinner } from "@/components/ui";
 
 function today(): string {

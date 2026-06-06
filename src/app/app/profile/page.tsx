@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getTeamMembers } from "@/lib/firebase/db";
+import { getTeamMembers } from "@/lib/db";
 import {
   POSITION_LABELS,
   ROLE_LABELS,
@@ -47,15 +46,14 @@ export default function ProfilePage() {
     if (!profile) return;
     setSaving(true);
     setSaved(false);
-    await setDoc(
-      doc(db, "users", profile.uid),
-      {
-        displayName: displayName.trim() || profile.displayName,
-        jerseyNumber: jersey ? Number(jersey) : null,
+    await supabase
+      .from("profiles")
+      .update({
+        display_name: displayName.trim() || profile.displayName,
+        jersey_number: jersey ? Number(jersey) : null,
         position: position || null,
-      },
-      { merge: true },
-    );
+      })
+      .eq("id", profile.uid);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

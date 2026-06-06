@@ -2,8 +2,8 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useDoc } from "@/lib/firebase/useDoc";
-import { updateTactic } from "@/lib/firebase/db";
+import { useDoc } from "@/lib/useDoc";
+import { mapTactic, updateTactic } from "@/lib/db";
 import TacticEditor, { type TacticDraft } from "@/components/tactics/TacticEditor";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 import type { Tactic } from "@/lib/types";
@@ -12,7 +12,7 @@ export default function EditTacticPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { profile } = useAuth();
-  const { data: tactic, loading } = useDoc<Tactic>("tactics", params.id);
+  const { data: tactic, loading } = useDoc<Tactic>("tactics", params.id, mapTactic);
 
   if (loading) return <FullScreenLoader />;
   if (!tactic) return <EmptyState icon="🔍" title="ローテ図が見つかりません" />;

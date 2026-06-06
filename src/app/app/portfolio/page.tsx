@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getTeamMembers } from "@/lib/firebase/db";
+import { getTeamMembers } from "@/lib/db";
 import { POSITION_LABELS, type UserProfile } from "@/lib/types";
 import SkillSheet from "@/components/portfolio/SkillSheet";
 import VideoSection from "@/components/portfolio/VideoSection";

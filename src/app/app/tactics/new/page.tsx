@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import TacticEditor, { type TacticDraft } from "@/components/tactics/TacticEditor";
-import { createTactic } from "@/lib/firebase/db";
+import { createTactic } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 
 export default function NewTacticPage() {

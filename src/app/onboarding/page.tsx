@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { createTeam, joinTeamByCode } from "@/lib/firebase/db";
+import { createTeam, joinTeamByCode } from "@/lib/db";
 import { ROLE_LABELS, type Role } from "@/lib/types";
 import { FullScreenLoader, Spinner } from "@/components/ui";
 
@@ -33,7 +33,7 @@ export default function OnboardingPage() {
     setBusy(true);
     setError("");
     try {
-      await createTeam(teamName.trim(), user.uid);
+      await createTeam(teamName.trim(), user.id);
       router.replace("/app");
     } catch {
       setError("チームの作成に失敗しました。");
@@ -47,7 +47,7 @@ export default function OnboardingPage() {
     setBusy(true);
     setError("");
     try {
-      await joinTeamByCode(code.trim(), user.uid, role);
+      await joinTeamByCode(code.trim(), user.id, role);
       router.replace("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "参加に失敗しました。");

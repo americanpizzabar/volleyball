@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useDoc } from "@/lib/firebase/useDoc";
-import { deletePractice, getTactics } from "@/lib/firebase/db";
+import { useDoc } from "@/lib/useDoc";
+import { deletePractice, getTactics, mapPractice } from "@/lib/db";
 import TacticViewer from "@/components/tactics/TacticViewer";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 import type { Practice, Tactic } from "@/lib/types";
@@ -15,7 +15,7 @@ export default function PracticeDetailPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const isCoach = profile?.role === "coach";
-  const { data: practice, loading } = useDoc<Practice>("practices", params.id);
+  const { data: practice, loading } = useDoc<Practice>("practices", params.id, mapPractice);
   const [tactics, setTactics] = useState<Tactic[]>([]);
 
   useEffect(() => {

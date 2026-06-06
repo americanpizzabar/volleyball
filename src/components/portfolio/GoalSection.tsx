@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useCollection } from "@/lib/firebase/useCollection";
+import { useCollection } from "@/lib/useCollection";
 import {
   createGoal,
   deleteGoal,
@@ -9,7 +9,7 @@ import {
   practicesQuery,
   setGoalStatus,
   updateGoal,
-} from "@/lib/firebase/db";
+} from "@/lib/db";
 import {
   GOAL_STATUS_LABELS,
   type Goal,

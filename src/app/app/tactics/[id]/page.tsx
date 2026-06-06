@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useDoc } from "@/lib/firebase/useDoc";
-import { deleteTactic } from "@/lib/firebase/db";
+import { useDoc } from "@/lib/useDoc";
+import { deleteTactic, mapTactic } from "@/lib/db";
 import TacticViewer from "@/components/tactics/TacticViewer";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 import type { Tactic } from "@/lib/types";
@@ -14,7 +14,7 @@ export default function TacticDetailPage() {
   const router = useRouter();
   const { profile } = useAuth();
   const isCoach = profile?.role === "coach";
-  const { data: tactic, loading } = useDoc<Tactic>("tactics", params.id);
+  const { data: tactic, loading } = useDoc<Tactic>("tactics", params.id, mapTactic);
 
   if (loading) return <FullScreenLoader />;
   if (!tactic) {

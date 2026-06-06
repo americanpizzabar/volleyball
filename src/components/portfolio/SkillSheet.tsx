@@ -1,7 +1,7 @@
 "use client";
 
-import { useDoc } from "@/lib/firebase/useDoc";
-import { setRating } from "@/lib/firebase/db";
+import { useDoc } from "@/lib/useDoc";
+import { mapSkillSheet, setRating } from "@/lib/db";
 import { RATING_LABELS, skillGroupsForPosition } from "@/lib/skills";
 import type { Position, SkillSheet as Sheet } from "@/lib/types";
 
@@ -18,7 +18,7 @@ export default function SkillSheet({
   canEditSelf: boolean;
   canEditCoach: boolean;
 }) {
-  const { data: sheet } = useDoc<Sheet>("skillSheets", targetUid);
+  const { data: sheet } = useDoc<Sheet>("skill_sheets", targetUid, mapSkillSheet, "user_id");
   const groups = skillGroupsForPosition(position);
 
   const self = sheet?.self ?? {};

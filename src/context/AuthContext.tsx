@@ -8,26 +8,15 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  type User,
-} from "firebase/auth";
-import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db, isFirebaseConfigured } from "@/lib/firebase/config";
+import type { User } from "@supabase/supabase-js";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { mapProfile, mapTeam } from "@/lib/db";
 import type { Team, UserProfile } from "@/lib/types";
 
 interface AuthContextValue {
-  /** Firebase auth user, or null when signed out. */
   user: User | null;
-  /** Firestore profile doc, or null while loading / before it exists. */
   profile: UserProfile | null;
-  /** The team the user belongs to, or null. */
   team: Team | null;
-  /** True until the initial auth + profile state has resolved. */
   loading: boolean;
   configured: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
@@ -43,50 +32,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Track auth state.
+  // Track the auth session.
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (!u) {
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      if (!data.session) setLoading(false);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session) {
         setProfile(null);
         setTeam(null);
         setLoading(false);
       }
     });
-    return unsub;
+    return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Subscribe to the user's profile document.
+  // Load + subscribe to the user's profile row.
   useEffect(() => {
     if (!user) return;
-    const ref = doc(db, "users", user.uid);
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        setProfile(snap.exists() ? (snap.data() as UserProfile) : null);
-        setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return unsub;
+    let cancelled = false;
+
+    async function loadProfile() {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setProfile(data ? mapProfile(data) : null);
+      setLoading(false);
+    }
+    loadProfile();
+
+    const channel = supabase
+      .channel(`rt:profile:${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        () => loadProfile(),
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
-  // Subscribe to the user's team document.
+  // Load the user's team whenever the team id changes.
   useEffect(() => {
     const teamId = profile?.teamId;
     if (!teamId) {
       setTeam(null);
       return;
     }
-    const ref = doc(db, "teams", teamId);
-    const unsub = onSnapshot(ref, (snap) => {
-      setTeam(snap.exists() ? ({ id: snap.id, ...snap.data() } as Team) : null);
-    });
-    return unsub;
+    let cancelled = false;
+    supabase
+      .from("teams")
+      .select("*")
+      .eq("id", teamId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setTeam(data ? mapTeam(data) : null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [profile?.teamId]);
 
   const value = useMemo<AuthContextValue>(
@@ -95,25 +112,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       team,
       loading,
-      configured: isFirebaseConfigured,
+      configured: isSupabaseConfigured,
       async signUp(email, password, displayName) {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        await updateProfile(cred.user, { displayName });
-        // Create the profile doc with no team yet → user goes to onboarding.
-        await setDoc(doc(db, "users", cred.user.uid), {
-          uid: cred.user.uid,
+        const { error } = await supabase.auth.signUp({
           email,
-          displayName,
-          role: "player",
-          teamId: null,
-          createdAt: serverTimestamp(),
+          password,
+          options: { data: { display_name: displayName } },
         });
+        if (error) throw error;
+        // profiles row is created by the on_auth_user_created trigger.
       },
       async signIn(email, password) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
       },
       async logout() {
-        await signOut(auth);
+        await supabase.auth.signOut();
       },
     }),
     [user, profile, team, loading],

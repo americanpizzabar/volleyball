@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
-import { useCollection } from "@/lib/firebase/useCollection";
-import { tacticsQuery } from "@/lib/firebase/db";
+import { useCollection } from "@/lib/useCollection";
+import { tacticsQuery } from "@/lib/db";
 import type { Tactic } from "@/lib/types";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 
