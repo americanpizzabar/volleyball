@@ -19,7 +19,11 @@ interface AuthContextValue {
   team: Team | null;
   loading: boolean;
   configured: boolean;
-  signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    displayName: string,
+  ) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
@@ -116,13 +120,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       configured: isSupabaseConfigured,
       async signUp(email, password, displayName) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { display_name: displayName } },
         });
         if (error) throw error;
         // profiles row is created by the on_auth_user_created trigger.
+        // No session means email confirmation is required before sign-in.
+        return { needsConfirmation: !data.session };
       },
       async signIn(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });

@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace("/app");
@@ -29,12 +30,41 @@ export default function SignupPage() {
     setSubmitting(true);
     setError("");
     try {
-      await signUp(email, password, displayName.trim());
-      router.replace("/onboarding");
+      const { needsConfirmation } = await signUp(email, password, displayName.trim());
+      if (needsConfirmation) {
+        // メール確認が必要な設定のとき：確認案内を表示（ログイン画面に戻さない）
+        setConfirmEmail(true);
+        setSubmitting(false);
+      } else {
+        router.replace("/onboarding");
+      }
     } catch (err) {
       setError(authErrorMessage(err));
       setSubmitting(false);
     }
+  }
+
+  if (confirmEmail) {
+    return (
+      <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-6 py-10">
+        <Link href="/" className="mb-8 flex items-center gap-2">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-600 text-base font-black text-white">
+            S
+          </span>
+          <span className="text-lg font-bold text-slate-900">サク戦</span>
+        </Link>
+        <div className="rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+          <p className="text-sm font-semibold text-emerald-700">📧 確認メールを送信しました</p>
+          <p className="mt-1 text-sm text-emerald-700">
+            {email} に届いたメール内のリンクを開くと登録が完了します。
+            その後ログインしてください。（迷惑メールフォルダもご確認ください）
+          </p>
+        </div>
+        <Link href="/login" className="btn-ghost mt-4 w-full">
+          ログインへ
+        </Link>
+      </div>
+    );
   }
 
   return (
