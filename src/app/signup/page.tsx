@@ -8,7 +8,7 @@ import { authErrorMessage } from "@/lib/auth-errors";
 import { Spinner } from "@/components/ui";
 
 export default function SignupPage() {
-  const { signUp, user, loading } = useAuth();
+  const { signUp, signIn, user, loading } = useAuth();
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,12 +32,19 @@ export default function SignupPage() {
     try {
       const { needsConfirmation } = await signUp(email, password, displayName.trim());
       if (needsConfirmation) {
-        // メール確認が必要な設定のとき：確認案内を表示（ログイン画面に戻さない）
-        setConfirmEmail(true);
-        setSubmitting(false);
-      } else {
-        router.replace("/onboarding");
+        // 新規ユーザーはDBトリガーで自動的に確認済みになるため、そのままログインを試みる。
+        try {
+          await signIn(email, password);
+          router.replace("/onboarding");
+          return;
+        } catch {
+          // 万一サインインできない場合のみ、メール確認の案内を表示
+          setConfirmEmail(true);
+          setSubmitting(false);
+          return;
+        }
       }
+      router.replace("/onboarding");
     } catch (err) {
       setError(authErrorMessage(err));
       setSubmitting(false);
