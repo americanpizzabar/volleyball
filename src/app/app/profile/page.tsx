@@ -12,6 +12,7 @@ import {
   type UserProfile,
 } from "@/lib/types";
 import { FullScreenLoader, PageHeader, Spinner } from "@/components/ui";
+import QRCodeImage from "@/components/QRCodeImage";
 
 export default function ProfilePage() {
   const { profile, team, logout, updatePassword } = useAuth();
@@ -28,6 +29,10 @@ export default function ProfilePage() {
   const [newPw, setNewPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const inviteUrl = team ? `${origin}/join/${team.inviteCode}` : "";
 
   useEffect(() => {
     if (profile) {
@@ -78,6 +83,32 @@ export default function ProfilePage() {
     router.replace("/");
   }
 
+  async function copyInviteUrl() {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 1500);
+    } catch {
+      /* clipboard may be blocked; URL is shown on screen */
+    }
+  }
+
+  async function shareInvite() {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({
+          title: "サク戦 参加リンク",
+          text: `${team?.name ?? "チーム"}に参加しよう`,
+          url: inviteUrl,
+        });
+      } catch {
+        /* user cancelled */
+      }
+    } else {
+      copyInviteUrl();
+    }
+  }
+
   async function handleChangePassword() {
     if (newPw.length < 6) {
       setPwMsg("6文字以上で入力してください。");
@@ -113,8 +144,22 @@ export default function ProfilePage() {
             </button>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            このコードを部員・マネージャーに共有すると、チームに参加できます。
+            部員・マネージャーは下のQR/リンクから、コード入力なしで参加できます。
           </p>
+
+          {/* invite link + QR */}
+          <div className="mt-4 flex flex-col items-center gap-3 border-t border-slate-100 pt-4">
+            <QRCodeImage value={inviteUrl} size={176} />
+            <p className="break-all text-center text-xs text-slate-500">{inviteUrl}</p>
+            <div className="flex w-full gap-2">
+              <button onClick={copyInviteUrl} className="btn-ghost flex-1 text-xs">
+                {copiedUrl ? "コピー✓" : "リンクをコピー"}
+              </button>
+              <button onClick={shareInvite} className="btn-primary flex-1 text-xs">
+                共有する
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
