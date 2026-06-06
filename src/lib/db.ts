@@ -124,6 +124,8 @@ export const mapStat = (r: Row): StatEvent => ({
   jersey: (r.jersey as number) ?? null,
   skill: r.skill as Skill,
   result: r.result as string,
+  x: (r.x as number) ?? null,
+  y: (r.y as number) ?? null,
   createdAt: ts(r.created_at),
 });
 
@@ -224,6 +226,14 @@ export function videosByUserQuery(userId: string): QuerySpec<GrowthVideo> {
 }
 export function goalsByUserQuery(userId: string): QuerySpec<Goal> {
   return { table: "goals", filters: [{ col: "user_id", val: userId }], map: mapGoal };
+}
+
+export function skillSheetsByTeamQuery(teamId: string): QuerySpec<SkillSheet> {
+  return {
+    table: "skill_sheets",
+    filters: [{ col: "team_id", val: teamId }],
+    map: mapSkillSheet,
+  };
 }
 
 // ---- Teams -------------------------------------------------------------
@@ -487,6 +497,8 @@ export async function recordStat(data: {
   jersey: number | null;
   skill: Skill;
   result: string;
+  x?: number | null;
+  y?: number | null;
 }): Promise<void> {
   const { error } = await supabase.from("stats").insert({
     team_id: data.teamId,
@@ -497,6 +509,8 @@ export async function recordStat(data: {
     jersey: data.jersey,
     skill: data.skill,
     result: data.result,
+    x: data.x ?? null,
+    y: data.y ?? null,
   });
   if (error) throw new Error(error.message);
 }

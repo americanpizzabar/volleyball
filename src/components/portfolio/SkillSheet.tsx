@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { useDoc } from "@/lib/useDoc";
-import { mapSkillSheet, setRating } from "@/lib/db";
-import { RATING_LABELS, skillGroupsForPosition } from "@/lib/skills";
+import { useCollection } from "@/lib/useCollection";
+import { mapSkillSheet, setRating, skillSheetsByTeamQuery } from "@/lib/db";
+import { RADAR_AXES, RATING_LABELS, radarValues, skillGroupsForPosition } from "@/lib/skills";
+import RadarChart from "./RadarChart";
 import type { Position, SkillSheet as Sheet } from "@/lib/types";
 
 export default function SkillSheet({
@@ -19,13 +22,53 @@ export default function SkillSheet({
   canEditCoach: boolean;
 }) {
   const { data: sheet } = useDoc<Sheet>("skill_sheets", targetUid, mapSkillSheet, "user_id");
+  const { data: allSheets } = useCollection<Sheet>(
+    () => skillSheetsByTeamQuery(teamId),
+    [teamId],
+  );
   const groups = skillGroupsForPosition(position);
 
   const self = sheet?.self ?? {};
   const coach = sheet?.coach ?? {};
 
+  // Radar: this player's values vs. team average.
+  const selfRadar = useMemo(() => radarValues(self), [self]);
+  const avgRadar = useMemo(() => {
+    if (allSheets.length === 0) return RADAR_AXES.map(() => 0);
+    const sums = RADAR_AXES.map(() => 0);
+    const counts = RADAR_AXES.map(() => 0);
+    for (const s of allSheets) {
+      radarValues(s.self ?? {}).forEach((v, i) => {
+        if (v > 0) {
+          sums[i] += v;
+          counts[i] += 1;
+        }
+      });
+    }
+    return sums.map((sum, i) => (counts[i] ? sum / counts[i] : 0));
+  }, [allSheets]);
+
+  const hasRadar = selfRadar.some((v) => v > 0);
+
   return (
     <div className="space-y-4">
+      <div className="card">
+        <p className="mb-1 text-sm font-bold text-slate-700">能力レーダー</p>
+        {hasRadar ? (
+          <>
+            <RadarChart labels={RADAR_AXES.map((a) => a.label)} self={selfRadar} avg={avgRadar} />
+            <div className="flex items-center justify-center gap-4 text-xs">
+              <Legend color="bg-brand-500" label="本人" />
+              <Legend color="bg-accent-500" label="チーム平均" />
+            </div>
+          </>
+        ) : (
+          <p className="py-6 text-center text-sm text-slate-400">
+            下のスキルを評価するとレーダーチャートが表示されます。
+          </p>
+        )}
+      </div>
+
       <div className="card flex items-center gap-4 text-xs">
         <Legend color="bg-brand-500" label="自己評価" />
         <Legend color="bg-accent-500" label="指導者評価" />

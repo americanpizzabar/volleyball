@@ -22,11 +22,16 @@ interface Props {
   positions: TacticPositions;
   /** When provided, tokens become draggable and report new positions. */
   onMove?: (playerId: string, x: number, y: number) => void;
+  /** Pairs of token ids that violate positional-fault rules (drawn in red). */
+  faults?: [string, string][];
+  /** Smoothly transition token positions (for rotation animation). */
+  animate?: boolean;
   className?: string;
 }
 
 /** SVG volleyball court with draggable player/ball tokens. Pure presentation. */
-export default function CourtCanvas({ players, positions, onMove, className }: Props) {
+export default function CourtCanvas({ players, positions, onMove, faults, animate, className }: Props) {
+  const faultedIds = new Set((faults ?? []).flat());
   const svgRef = useRef<SVGSVGElement>(null);
   const dragId = useRef<string | null>(null);
 
@@ -76,6 +81,26 @@ export default function CourtCanvas({ players, positions, onMove, className }: P
       <text x="50" y={NET_Y - 1.2} textAnchor="middle" fontSize="3" fill="#475569">ネット</text>
       <text x="6" y="97" fontSize="3" fill="#94a3b8">自コート</text>
 
+      {/* positional-fault lines (red dashed, blinking) */}
+      {(faults ?? []).map(([a, b], i) => {
+        const pa = positions[a];
+        const pb = positions[b];
+        if (!pa || !pb) return null;
+        return (
+          <line
+            key={`f${i}`}
+            x1={pa.x}
+            y1={pa.y}
+            x2={pb.x}
+            y2={pb.y}
+            stroke="#ef4444"
+            strokeWidth="1"
+            strokeDasharray="2 1.5"
+            className="fault-blink"
+          />
+        );
+      })}
+
       {/* tokens */}
       {players.map((p) => {
         const pos = positions[p.id];
@@ -85,10 +110,21 @@ export default function CourtCanvas({ players, positions, onMove, className }: P
         return (
           <g
             key={p.id}
-            transform={`translate(${pos.x} ${pos.y})`}
-            style={{ cursor: onMove ? "grab" : "default" }}
+            transform={animate ? undefined : `translate(${pos.x} ${pos.y})`}
+            style={
+              animate
+                ? {
+                    transform: `translate(${pos.x}px, ${pos.y}px)`,
+                    transition: "transform 0.45s ease",
+                    cursor: onMove ? "grab" : "default",
+                  }
+                : { cursor: onMove ? "grab" : "default" }
+            }
             onPointerDown={(e) => handlePointerDown(e, p.id)}
           >
+            {faultedIds.has(p.id) && (
+              <circle r={r + 1.6} fill="none" stroke="#ef4444" strokeWidth="1" className="fault-blink" />
+            )}
             <circle r={r} fill={s.fill} stroke={s.stroke} strokeWidth="0.7" />
             {p.team !== "ball" && (
               <text

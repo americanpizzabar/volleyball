@@ -16,6 +16,7 @@ export const supabase: SupabaseClient = createClient(url, anonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    // パスワード再設定/マジックリンクのトークンをURLから検出する
+    detectSessionInUrl: true,
   },
 });

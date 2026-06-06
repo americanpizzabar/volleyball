@@ -21,6 +21,8 @@ interface AuthContextValue {
   configured: boolean;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -124,6 +126,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       async signIn(email, password) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      },
+      async sendPasswordReset(email) {
+        const redirectTo =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/reset-password`
+            : undefined;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+      },
+      async updatePassword(password) {
+        const { error } = await supabase.auth.updateUser({ password });
         if (error) throw error;
       },
       async logout() {

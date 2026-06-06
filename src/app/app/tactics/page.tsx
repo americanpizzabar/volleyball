@@ -33,6 +33,20 @@ export default function TacticsListPage() {
         }
       />
 
+      <Link
+        href="/app/tactics/rotation"
+        className="card mb-4 flex items-center justify-between bg-gradient-to-r from-brand-600 to-brand-500 text-white transition hover:opacity-95"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🔄</span>
+          <div>
+            <p className="font-bold">ローテシミュレーター</p>
+            <p className="text-xs text-white/80">かぶり(反則)を自動判定・交代もできる</p>
+          </div>
+        </div>
+        <span className="text-2xl text-white/70">›</span>
+      </Link>
+
       {tactics.length === 0 ? (
         <EmptyState
           icon="🏐"

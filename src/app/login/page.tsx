@@ -73,7 +73,13 @@ export default function LoginPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-4 text-center text-sm">
+        <Link href="/forgot-password" className="font-semibold text-brand-600">
+          パスワードをお忘れですか？
+        </Link>
+      </p>
+
+      <p className="mt-3 text-center text-sm text-slate-500">
         アカウントがない？{" "}
         <Link href="/signup" className="font-semibold text-brand-600">
           新規登録

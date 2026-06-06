@@ -16,6 +16,8 @@ import {
   updateMatch,
 } from "@/lib/db";
 import StatRecorder, { type RosterPlayer } from "@/components/stats/StatRecorder";
+import CourtTapInput from "@/components/stats/CourtTapInput";
+import ShotChart from "@/components/stats/ShotChart";
 import StatsTable from "@/components/stats/StatsTable";
 import { aggregate, resultLabel, SKILL_LABELS, type StatEvent } from "@/lib/stats";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
@@ -34,6 +36,7 @@ export default function MatchPage() {
   );
   const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [scope, setScope] = useState<"set" | "all">("set");
+  const [inputMode, setInputMode] = useState<"button" | "court">("button");
 
   useEffect(() => {
     if (!match?.teamId) return;
@@ -89,7 +92,13 @@ export default function MatchPage() {
     });
   }
 
-  async function handleRecord(player: RosterPlayer, skill: StatEvent["skill"], result: string) {
+  async function handleRecord(
+    player: RosterPlayer,
+    skill: StatEvent["skill"],
+    result: string,
+    x: number | null = null,
+    y: number | null = null,
+  ) {
     if (!match) return;
     await recordStat({
       teamId: match.teamId,
@@ -100,6 +109,8 @@ export default function MatchPage() {
       jersey: player.jersey,
       skill,
       result,
+      x,
+      y,
     });
   }
 
@@ -175,7 +186,40 @@ export default function MatchPage() {
 
       {/* Recorder (staff only, while live) */}
       {isStaff && match.status === "live" && (
-        <StatRecorder players={roster} onRecord={handleRecord} />
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setInputMode("button")}
+              className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
+                inputMode === "button"
+                  ? "bg-brand-600 text-white ring-brand-600"
+                  : "bg-white text-slate-600 ring-slate-200"
+              }`}
+            >
+              ボタン入力
+            </button>
+            <button
+              onClick={() => setInputMode("court")}
+              className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
+                inputMode === "court"
+                  ? "bg-brand-600 text-white ring-brand-600"
+                  : "bg-white text-slate-600 ring-slate-200"
+              }`}
+            >
+              コート入力（2タッチ）
+            </button>
+          </div>
+          {inputMode === "button" ? (
+            <StatRecorder players={roster} onRecord={handleRecord} />
+          ) : (
+            <CourtTapInput
+              players={roster}
+              onRecord={(player, result, x, y) =>
+                handleRecord(player, "spike", result, x, y)
+              }
+            />
+          )}
+        </div>
       )}
 
       {/* Recent events with undo */}
@@ -213,6 +257,12 @@ export default function MatchPage() {
           </div>
         </div>
         <StatsTable players={aggregated} />
+      </div>
+
+      {/* Shot chart (court-tap spikes) */}
+      <div>
+        <h2 className="mb-2 text-sm font-bold text-slate-700">ショットチャート（スパイク落下地点）</h2>
+        <ShotChart events={scoped} />
       </div>
 
       {isStaff && (

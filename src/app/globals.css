@@ -64,3 +64,11 @@ body {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
 }
+
+@keyframes faultblink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.fault-blink {
+  animation: faultblink 0.8s ease-in-out infinite;
+}

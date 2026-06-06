@@ -78,6 +78,9 @@ export interface StatEvent {
   jersey: number | null;
   skill: Skill;
   result: string;
+  /** Landing spot (0-100) for court-tap entries. Null for button entries. */
+  x?: number | null;
+  y?: number | null;
   createdAt?: number;
 }
 

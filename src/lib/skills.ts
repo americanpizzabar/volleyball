@@ -85,3 +85,22 @@ export const RATING_LABELS: Record<number, string> = {
   4: "得意",
   5: "武器",
 };
+
+/** レーダーチャートの6軸。各軸は複数スキルの平均で算出。 */
+export const RADAR_AXES: { key: string; label: string; skillKeys: string[] }[] = [
+  { key: "serve", label: "サーブ", skillKeys: ["serve", "serve_power"] },
+  { key: "receive", label: "レシーブ", skillKeys: ["reception", "dig"] },
+  { key: "spike", label: "スパイク", skillKeys: ["spike"] },
+  { key: "block", label: "ブロック", skillKeys: ["block"] },
+  { key: "mental", label: "メンタル", skillKeys: ["mental", "judgement"] },
+  { key: "fitness", label: "フィジカル", skillKeys: ["fitness"] },
+];
+
+/** 1人のスキル評価マップから各軸値(0-5)を算出。評価が無い軸は0。 */
+export function radarValues(ratings: Record<string, number>): number[] {
+  return RADAR_AXES.map((axis) => {
+    const vals = axis.skillKeys.map((k) => ratings[k]).filter((v): v is number => !!v);
+    if (vals.length === 0) return 0;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  });
+}
