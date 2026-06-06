@@ -14,7 +14,7 @@ import {
 import { FullScreenLoader, PageHeader, Spinner } from "@/components/ui";
 
 export default function ProfilePage() {
-  const { profile, team, logout } = useAuth();
+  const { profile, team, logout, updatePassword } = useAuth();
   const router = useRouter();
   const isCoach = profile?.role === "coach";
 
@@ -25,6 +25,9 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [copied, setCopied] = useState(false);
+  const [newPw, setNewPw] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwMsg, setPwMsg] = useState("");
 
   useEffect(() => {
     if (profile) {
@@ -73,6 +76,24 @@ export default function ProfilePage() {
   async function handleLogout() {
     await logout();
     router.replace("/");
+  }
+
+  async function handleChangePassword() {
+    if (newPw.length < 6) {
+      setPwMsg("6文字以上で入力してください。");
+      return;
+    }
+    setPwBusy(true);
+    setPwMsg("");
+    try {
+      await updatePassword(newPw);
+      setNewPw("");
+      setPwMsg("変更しました ✓");
+      setTimeout(() => setPwMsg(""), 2500);
+    } catch {
+      setPwMsg("変更に失敗しました。再ログイン後にお試しください。");
+    }
+    setPwBusy(false);
   }
 
   return (
@@ -136,6 +157,38 @@ export default function ProfilePage() {
         </div>
         <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
           {saving ? <Spinner /> : saved ? "保存しました ✓" : "保存"}
+        </button>
+      </div>
+
+      {/* password change (no email needed) */}
+      <div className="card space-y-3">
+        <p className="text-sm font-bold text-slate-700">パスワード変更</p>
+        <p className="text-xs text-slate-500">
+          メール不要。新しいパスワードを入力して変更できます。
+        </p>
+        <input
+          type="password"
+          className="input"
+          placeholder="新しいパスワード（6文字以上）"
+          autoComplete="new-password"
+          value={newPw}
+          onChange={(e) => setNewPw(e.target.value)}
+        />
+        {pwMsg && (
+          <p
+            className={`text-sm ${
+              pwMsg.includes("✓") ? "text-emerald-600" : "text-red-600"
+            }`}
+          >
+            {pwMsg}
+          </p>
+        )}
+        <button
+          onClick={handleChangePassword}
+          disabled={pwBusy || !newPw}
+          className="btn-ghost w-full"
+        >
+          {pwBusy ? <Spinner /> : "パスワードを変更"}
         </button>
       </div>
 
