@@ -86,6 +86,7 @@ export default function Dashboard() {
         <QuickAction href="/app/tactics" emoji="🎬" label="ローテを予習" />
         <QuickAction href="/app/journal/new" emoji="✍️" label="日誌を書く" />
         <QuickAction href="/app/portfolio" emoji="📈" label="ポートフォリオ" />
+        <QuickAction href="/app/roster" emoji="✨" label="ステータス" />
         <QuickAction href="/app/requests" emoji="💡" label="要望・投票" />
       </section>
 

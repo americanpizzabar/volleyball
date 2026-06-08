@@ -178,3 +178,23 @@ export function receptionARate(p: PlayerStats): number | null {
 export function fmtPct(value: number | null): string {
   return value == null ? "—" : `${Math.round(value)}%`;
 }
+
+/**
+ * 直近イベントから選手ごとの「好調スコア」を算出（好調オーラ判定用）。
+ * 決定・エース=2点、ブロック決定・レセプションA=1点。
+ */
+export function recentForm(events: StatEvent[], limit = 60): Record<string, number> {
+  const recent = [...events]
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+    .slice(0, limit);
+  const score: Record<string, number> = {};
+  for (const e of recent) {
+    let pts = 0;
+    if (e.skill === "spike" && e.result === "kill") pts = 2;
+    else if (e.skill === "serve" && e.result === "ace") pts = 2;
+    else if (e.skill === "block" && e.result === "kill") pts = 1;
+    else if (e.skill === "reception" && e.result === "a") pts = 1;
+    if (pts > 0) score[e.playerId] = (score[e.playerId] ?? 0) + pts;
+  }
+  return score;
+}

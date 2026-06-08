@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDoc } from "@/lib/useDoc";
 import { useCollection } from "@/lib/useCollection";
 import { mapSkillSheet, setRating, skillSheetsByTeamQuery } from "@/lib/db";
@@ -31,6 +31,17 @@ export default function SkillSheet({
   const self = sheet?.self ?? {};
   const coach = sheet?.coach ?? {};
 
+  const [levelUp, setLevelUp] = useState<{ label: string; from: number; to: number } | null>(null);
+
+  function rate(side: "self" | "coach", key: string, label: string, v: number) {
+    const prev = (side === "self" ? self[key] : coach[key]) ?? 0;
+    if (v > prev) {
+      setLevelUp({ label, from: prev, to: v });
+      setTimeout(() => setLevelUp(null), 1600);
+    }
+    setRating(targetUid, teamId, side, key, v);
+  }
+
   // Radar: this player's values vs. team average.
   const selfRadar = useMemo(() => radarValues(self), [self]);
   const avgRadar = useMemo(() => {
@@ -51,7 +62,19 @@ export default function SkillSheet({
   const hasRadar = selfRadar.some((v) => v > 0);
 
   return (
-    <div className="space-y-4">
+    <div className="relative space-y-4">
+      {/* level-up effect */}
+      {levelUp && (
+        <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4">
+          <div className="rally-pop rounded-2xl bg-gradient-to-r from-brand-600 to-blue-500 px-5 py-3 text-center text-white shadow-lg">
+            <p className="text-xs font-semibold opacity-90">{levelUp.label}</p>
+            <p className="text-xl font-black">
+              Lv.{levelUp.from} <span className="opacity-70">→</span> Lv.{levelUp.to} ⬆️✨
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <p className="mb-1 text-sm font-bold text-slate-700">能力レーダー</p>
         {hasRadar ? (
@@ -92,14 +115,14 @@ export default function SkillSheet({
                   color="brand"
                   value={self[it.key]}
                   editable={canEditSelf}
-                  onChange={(v) => setRating(targetUid, teamId, "self", it.key, v)}
+                  onChange={(v) => rate("self", it.key, it.label, v)}
                 />
                 <RatingRow
                   label="指導者"
                   color="accent"
                   value={coach[it.key]}
                   editable={canEditCoach}
-                  onChange={(v) => setRating(targetUid, teamId, "coach", it.key, v)}
+                  onChange={(v) => rate("coach", it.key, it.label, v)}
                 />
               </div>
             ))}

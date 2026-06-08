@@ -6,6 +6,7 @@ import { ROLE_LABELS } from "@/lib/types";
 import { PageHeader } from "@/components/ui";
 
 const LINKS = [
+  { href: "/app/roster", emoji: "✨", label: "チーム・ステータス", desc: "好調オーラ・総合パワーで見える化" },
   { href: "/app/portfolio", emoji: "📈", label: "ポートフォリオ", desc: "スキルチェック・動画・目標(PDCA)" },
   { href: "/app/journal", emoji: "✍️", label: "振り返り日誌", desc: "練習の反省・コンディション記録" },
   { href: "/app/requests", emoji: "💡", label: "要望・情報共有", desc: "欲しい機能をリクエスト＆投票" },
