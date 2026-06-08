@@ -1,13 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useDoc } from "@/lib/useDoc";
 import { deleteTactic, mapTactic } from "@/lib/db";
 import TacticViewer from "@/components/tactics/TacticViewer";
-import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
+import { EmptyState, FullScreenLoader, PageHeader, Spinner } from "@/components/ui";
 import type { Tactic } from "@/lib/types";
+
+const Tactic3DViewer = dynamic(
+  () => import("@/components/tactics/Tactic3DViewer"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[360px] items-center justify-center rounded-2xl bg-slate-100">
+        <Spinner className="text-brand-600" />
+      </div>
+    ),
+  },
+);
 
 export default function TacticDetailPage() {
   const params = useParams<{ id: string }>();
@@ -15,6 +29,7 @@ export default function TacticDetailPage() {
   const { profile } = useAuth();
   const isCoach = profile?.role === "coach";
   const { data: tactic, loading } = useDoc<Tactic>("tactics", params.id, mapTactic);
+  const [view, setView] = useState<"2d" | "3d">("2d");
 
   if (loading) return <FullScreenLoader />;
   if (!tactic) {
@@ -36,7 +51,27 @@ export default function TacticDetailPage() {
         subtitle={`ローテ${tactic.rotation} ・ ${tactic.keyframes.length} コマ`}
       />
 
-      <TacticViewer tactic={tactic} />
+      <div className="mb-3 grid grid-cols-2 gap-1.5">
+        {(["2d", "3d"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
+              view === v
+                ? "bg-brand-600 text-white ring-brand-600"
+                : "bg-white text-slate-600 ring-slate-200"
+            }`}
+          >
+            {v === "2d" ? "2D / 俯瞰" : "3D コート"}
+          </button>
+        ))}
+      </div>
+
+      {view === "2d" ? (
+        <TacticViewer tactic={tactic} />
+      ) : (
+        <Tactic3DViewer tactic={tactic} />
+      )}
 
       {tactic.description && (
         <div className="card mt-4">
