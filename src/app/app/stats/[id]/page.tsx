@@ -21,6 +21,7 @@ import RallyTracker from "@/components/stats/RallyTracker";
 import ShotChart from "@/components/stats/ShotChart";
 import StatsTable from "@/components/stats/StatsTable";
 import { aggregate, resultLabel, SKILL_LABELS, type StatEvent } from "@/lib/stats";
+import { toDataVolleyCode, toDataVolleyText } from "@/lib/datavolley";
 import { EmptyState, FullScreenLoader, PageHeader } from "@/components/ui";
 import type { Match, UserProfile } from "@/lib/types";
 
@@ -113,6 +114,18 @@ export default function MatchPage() {
       x,
       y,
     });
+  }
+
+  function exportCodes() {
+    if (!match) return;
+    const text = toDataVolleyText(sorted, `vs ${match.opponent} ${match.date}`);
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${match.opponent}_${match.date}.dvw.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function handleDeleteMatch() {
@@ -251,9 +264,9 @@ export default function MatchPage() {
                   if (confirm("この記録を取り消しますか？")) deleteStat(e.id);
                 }}
                 className="chip bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+                title={`${SKILL_LABELS[e.skill]}/${resultLabel(e.skill, e.result)}`}
               >
-                {e.jersey ?? ""}{e.jersey != null ? " " : ""}
-                {SKILL_LABELS[e.skill]}/{resultLabel(e.skill, e.result)} ✕
+                <span className="font-mono">{toDataVolleyCode(e)}</span> ✕
               </button>
             ))}
           </div>
@@ -281,6 +294,12 @@ export default function MatchPage() {
         <h2 className="mb-2 text-sm font-bold text-slate-700">ショットチャート（スパイク落下地点）</h2>
         <ShotChart events={scoped} />
       </div>
+
+      {sorted.length > 0 && (
+        <button onClick={exportCodes} className="btn-ghost w-full text-xs">
+          ⬇ プロ用コードをエクスポート（DataVolley互換 .dvw風）
+        </button>
+      )}
 
       {isStaff && (
         <button onClick={handleDeleteMatch} className="btn-danger w-full">

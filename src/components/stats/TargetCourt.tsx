@@ -15,6 +15,14 @@ export interface ShotPoint {
   color: string; // 点の色
 }
 
+export interface HeatCell {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  intensity: number; // 0..1
+}
+
 function toSvg(x: number, y: number) {
   return { sx: X0 + (x / 100) * W, sy: Y_NET - (y / 100) * H };
 }
@@ -22,10 +30,12 @@ function toSvg(x: number, y: number) {
 export default function TargetCourt({
   onTap,
   points,
+  cells,
   className,
 }: {
   onTap?: (x: number, y: number) => void;
   points?: ShotPoint[];
+  cells?: HeatCell[];
   className?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null);
@@ -59,6 +69,22 @@ export default function TargetCourt({
       <line x1="0" y1={Y_NET} x2="100" y2={Y_NET} stroke="#ffffff" strokeWidth="1.4" strokeDasharray="1.4 1.4" />
       <text x="50" y={Y_NET + 5} textAnchor="middle" fontSize="3.5" fill="#475569">ネット（自分側）</text>
       <text x="50" y={Y_END - 0.5} textAnchor="middle" fontSize="3" fill="#94a3b8">相手エンドライン</text>
+
+      {(cells ?? []).map((c, i) => {
+        const a = toSvg(c.x0, c.y1);
+        const b = toSvg(c.x1, c.y0);
+        return (
+          <rect
+            key={`h${i}`}
+            x={Math.min(a.sx, b.sx)}
+            y={Math.min(a.sy, b.sy)}
+            width={Math.abs(b.sx - a.sx)}
+            height={Math.abs(b.sy - a.sy)}
+            fill="#ef4444"
+            opacity={0.12 + c.intensity * 0.6}
+          />
+        );
+      })}
 
       {(points ?? []).map((p, i) => {
         const { sx, sy } = toSvg(p.x, p.y);
