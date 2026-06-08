@@ -7,12 +7,14 @@ import { POSITION_LABELS, type UserProfile } from "@/lib/types";
 import SkillSheet from "@/components/portfolio/SkillSheet";
 import VideoSection from "@/components/portfolio/VideoSection";
 import GoalSection from "@/components/portfolio/GoalSection";
+import ProBenchmark from "@/components/portfolio/ProBenchmark";
 import { FullScreenLoader, PageHeader } from "@/components/ui";
 
-type Section = "skills" | "videos" | "goals";
+type Section = "skills" | "pro" | "videos" | "goals";
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "skills", label: "スキル" },
+  { key: "pro", label: "プロ比較" },
   { key: "videos", label: "動画" },
   { key: "goals", label: "目標" },
 ];
@@ -84,7 +86,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Section tabs */}
-      <div className="mb-4 grid grid-cols-3 gap-1.5">
+      <div className="mb-4 grid grid-cols-4 gap-1.5">
         {SECTIONS.map((s) => (
           <button
             key={s.key}
@@ -107,6 +109,13 @@ export default function PortfolioPage() {
           position={target.position ?? null}
           canEditSelf={canEditSelf}
           canEditCoach={canEditCoach}
+        />
+      )}
+      {section === "pro" && (
+        <ProBenchmark
+          targetUid={target.uid}
+          teamId={teamId}
+          position={target.position ?? null}
         />
       )}
       {section === "videos" && (
