@@ -17,6 +17,7 @@ import {
 } from "@/lib/db";
 import StatRecorder, { type RosterPlayer } from "@/components/stats/StatRecorder";
 import CourtTapInput from "@/components/stats/CourtTapInput";
+import RallyTracker from "@/components/stats/RallyTracker";
 import ShotChart from "@/components/stats/ShotChart";
 import StatsTable from "@/components/stats/StatsTable";
 import { aggregate, resultLabel, SKILL_LABELS, type StatEvent } from "@/lib/stats";
@@ -36,7 +37,7 @@ export default function MatchPage() {
   );
   const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [scope, setScope] = useState<"set" | "all">("set");
-  const [inputMode, setInputMode] = useState<"button" | "court">("button");
+  const [inputMode, setInputMode] = useState<"button" | "court" | "rally">("button");
 
   useEffect(() => {
     if (!match?.teamId) return;
@@ -187,36 +188,52 @@ export default function MatchPage() {
       {/* Recorder (staff only, while live) */}
       {isStaff && match.status === "live" && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setInputMode("button")}
-              className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
-                inputMode === "button"
-                  ? "bg-brand-600 text-white ring-brand-600"
-                  : "bg-white text-slate-600 ring-slate-200"
-              }`}
-            >
-              ボタン入力
-            </button>
-            <button
-              onClick={() => setInputMode("court")}
-              className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
-                inputMode === "court"
-                  ? "bg-brand-600 text-white ring-brand-600"
-                  : "bg-white text-slate-600 ring-slate-200"
-              }`}
-            >
-              コート入力（2タッチ）
-            </button>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(
+              [
+                ["button", "ボタン"],
+                ["court", "コート"],
+                ["rally", "なぞる"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setInputMode(mode)}
+                className={`rounded-xl py-2 text-sm font-semibold ring-1 transition ${
+                  inputMode === mode
+                    ? "bg-brand-600 text-white ring-brand-600"
+                    : "bg-white text-slate-600 ring-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
-          {inputMode === "button" ? (
+          {inputMode === "button" && (
             <StatRecorder players={roster} onRecord={handleRecord} />
-          ) : (
+          )}
+          {inputMode === "court" && (
             <CourtTapInput
               players={roster}
               onRecord={(player, result, x, y) =>
                 handleRecord(player, "spike", result, x, y)
               }
+            />
+          )}
+          {inputMode === "rally" && (
+            <RallyTracker
+              players={roster}
+              onRally={async ({ events }) => {
+                for (const ev of events) {
+                  await handleRecord(
+                    ev.player,
+                    ev.skill,
+                    ev.result,
+                    ev.x ?? null,
+                    ev.y ?? null,
+                  );
+                }
+              }}
             />
           )}
         </div>

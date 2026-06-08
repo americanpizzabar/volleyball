@@ -72,3 +72,22 @@ body {
 .fault-blink {
   animation: faultblink 0.8s ease-in-out infinite;
 }
+
+@keyframes rallypop {
+  0% { transform: scale(0.5) translateY(10px); opacity: 0; }
+  25% { transform: scale(1.1) translateY(0); opacity: 1; }
+  70% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(-8px); opacity: 0; }
+}
+.rally-pop {
+  animation: rallypop 1.5s ease-out forwards;
+}
+@keyframes rallysub {
+  0% { transform: translateY(8px); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateY(-6px); opacity: 0; }
+}
+.rally-sub {
+  animation: rallysub 1.5s ease-out forwards;
+}
