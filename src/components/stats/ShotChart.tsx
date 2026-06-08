@@ -9,16 +9,41 @@ const COLOR: Record<string, string> = {
   error: "#ef4444",
   blocked: "#f97316",
 };
-
+const RESULTS: { key: string; label: string }[] = [
+  { key: "kill", label: "決定" },
+  { key: "error", label: "ミス" },
+  { key: "blocked", label: "被ブロック" },
+];
 const GRID = 3; // 3x3 ゾーン
 
-/** スパイクの落下地点をコート上に表示（点 / 配球ヒートマップ）。 */
+/** スパイクの落下地点を表示（点 / 配球ヒートマップ）。選手・結果で絞り込み可。 */
 export default function ShotChart({ events }: { events: StatEvent[] }) {
   const [mode, setMode] = useState<"point" | "heat">("point");
+  const [player, setPlayer] = useState<string>("all");
+  const [results, setResults] = useState<Set<string>>(new Set(["kill", "error", "blocked"]));
 
-  const shots = useMemo(
+  const allShots = useMemo(
     () => events.filter((e) => e.skill === "spike" && e.x != null && e.y != null),
     [events],
+  );
+
+  // 選手リスト（背番号順）
+  const players = useMemo(() => {
+    const map = new Map<string, { id: string; label: string; jersey: number | null }>();
+    for (const e of allShots) {
+      if (!map.has(e.playerId)) {
+        map.set(e.playerId, { id: e.playerId, label: e.playerName, jersey: e.jersey });
+      }
+    }
+    return [...map.values()].sort((a, b) => (a.jersey ?? 999) - (b.jersey ?? 999));
+  }, [allShots]);
+
+  const shots = useMemo(
+    () =>
+      allShots.filter(
+        (e) => (player === "all" || e.playerId === player) && results.has(e.result),
+      ),
+    [allShots, player, results],
   );
 
   const points = useMemo<ShotPoint[]>(
@@ -51,7 +76,16 @@ export default function ShotChart({ events }: { events: StatEvent[] }) {
     return out;
   }, [shots]);
 
-  if (shots.length === 0) {
+  function toggleResult(key: string) {
+    setResults((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  if (allShots.length === 0) {
     return (
       <p className="card text-sm text-slate-500">
         コート入力／なぞる入力のスパイク記録がまだありません。
@@ -60,8 +94,9 @@ export default function ShotChart({ events }: { events: StatEvent[] }) {
   }
 
   return (
-    <div className="card">
-      <div className="mb-2 flex items-center gap-2">
+    <div className="card space-y-2">
+      {/* mode + player */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1.5">
           <button
             onClick={() => setMode("point")}
@@ -76,25 +111,41 @@ export default function ShotChart({ events }: { events: StatEvent[] }) {
             ヒートマップ
           </button>
         </div>
-        <span className="ml-auto text-xs text-slate-400">計 {shots.length} 本</span>
+        <select
+          value={player}
+          onChange={(e) => setPlayer(e.target.value)}
+          className="ml-auto rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+        >
+          <option value="all">全選手</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.jersey != null ? `${p.jersey} ` : ""}
+              {p.label}
+            </option>
+          ))}
+        </select>
       </div>
-      {mode === "point" && (
-        <div className="mb-2 flex items-center gap-3 text-xs text-slate-500">
-          <Legend color="#10b981" label="決定" />
-          <Legend color="#ef4444" label="ミス" />
-          <Legend color="#f97316" label="被ブロック" />
-        </div>
-      )}
+
+      {/* result filter */}
+      <div className="flex flex-wrap gap-1.5">
+        {RESULTS.map((r) => (
+          <button
+            key={r.key}
+            onClick={() => toggleResult(r.key)}
+            className={`chip ring-1 transition ${
+              results.has(r.key)
+                ? "text-white ring-transparent"
+                : "bg-white text-slate-400 ring-slate-200"
+            }`}
+            style={results.has(r.key) ? { backgroundColor: COLOR[r.key] } : undefined}
+          >
+            {r.label}
+          </button>
+        ))}
+        <span className="ml-auto self-center text-xs text-slate-400">計 {shots.length} 本</span>
+      </div>
+
       <TargetCourt points={mode === "point" ? points : []} cells={mode === "heat" ? cells : []} />
     </div>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1">
-      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: color }} />
-      {label}
-    </span>
   );
 }
