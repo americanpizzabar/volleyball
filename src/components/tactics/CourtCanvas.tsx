@@ -28,13 +28,17 @@ interface Props {
   safeZone?: { x0: number; y0: number; x1: number; y1: number } | null;
   /** Tint the whole court red (positional-fault warning). */
   danger?: boolean;
+  /** Movement arrows (approach vectors) drawn under the tokens. */
+  arrows?: { x1: number; y1: number; x2: number; y2: number; color?: string }[];
+  /** Ball trajectory path (SVG path "d") drawn as a dashed parabola. */
+  trajectory?: string;
   /** Smoothly transition token positions (for rotation animation). */
   animate?: boolean;
   className?: string;
 }
 
 /** SVG volleyball court with draggable player/ball tokens. Pure presentation. */
-export default function CourtCanvas({ players, positions, onMove, faults, safeZone, danger, animate, className }: Props) {
+export default function CourtCanvas({ players, positions, onMove, faults, safeZone, danger, arrows, trajectory, animate, className }: Props) {
   const faultedIds = new Set((faults ?? []).flat());
   const svgRef = useRef<SVGSVGElement>(null);
   const dragId = useRef<string | null>(null);
@@ -73,6 +77,11 @@ export default function CourtCanvas({ players, positions, onMove, faults, safeZo
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
+      <defs>
+        <marker id="cc-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#4f46e5" />
+        </marker>
+      </defs>
       {/* court surface */}
       <rect x="0" y="0" width="100" height="100" rx="3" fill="#f59e42" opacity="0.12" />
       <rect x="3" y="3" width="94" height="94" fill="#fb923c" opacity="0.16" stroke="#ea580c" strokeWidth="0.7" />
@@ -126,6 +135,27 @@ export default function CourtCanvas({ players, positions, onMove, faults, safeZo
           />
         );
       })}
+
+      {/* approach vectors (movement arrows) */}
+      {(arrows ?? []).map((a, i) => (
+        <line
+          key={`a${i}`}
+          x1={a.x1}
+          y1={a.y1}
+          x2={a.x2}
+          y2={a.y2}
+          stroke={a.color ?? "#4f46e5"}
+          strokeWidth="0.9"
+          strokeLinecap="round"
+          markerEnd="url(#cc-arrow)"
+          opacity="0.7"
+        />
+      ))}
+
+      {/* ball trajectory (parabola) */}
+      {trajectory && (
+        <path d={trajectory} fill="none" stroke="#ca8a04" strokeWidth="0.8" strokeDasharray="2 1.5" opacity="0.8" />
+      )}
 
       {/* tokens */}
       {players.map((p) => {
