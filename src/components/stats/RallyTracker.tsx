@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { playKill } from "@/lib/sfx";
 import type { RosterPlayer } from "./StatRecorder";
 
 // レイアウト（viewBox 100 x 132）。相手コートが上、自コートが下。
@@ -127,6 +128,8 @@ export default function RallyTracker({
 
     const result: RallyResult = { events, killLabel: "SPIKE KILL!" };
     setFlash(result);
+    playKill();
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(40);
     setTimeout(() => setFlash(null), 1500);
     reset();
     await onRally(result);

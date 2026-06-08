@@ -13,6 +13,7 @@ import {
   SLOT_RECEIVE,
   type Pt,
 } from "@/lib/rotation";
+import { playBuzz } from "@/lib/sfx";
 import { FullScreenLoader } from "@/components/ui";
 
 interface Token {
@@ -103,10 +104,11 @@ export default function RotationSimulator() {
 
   const danger = faults.length > 0;
 
-  // 反則に入った瞬間にバイブレーション
+  // 反則に入った瞬間にバイブレーション＋ブザー音
   useEffect(() => {
-    if (danger && typeof navigator !== "undefined" && navigator.vibrate) {
-      navigator.vibrate(180);
+    if (danger) {
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(180);
+      playBuzz();
     }
   }, [danger]);
 

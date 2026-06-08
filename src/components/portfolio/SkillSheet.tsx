@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDoc } from "@/lib/useDoc";
 import { useCollection } from "@/lib/useCollection";
-import { mapSkillSheet, setRating, skillSheetsByTeamQuery } from "@/lib/db";
+import { getTeamMembers, mapSkillSheet, setRating, skillSheetsByTeamQuery } from "@/lib/db";
+import type { UserProfile } from "@/lib/types";
 import { RADAR_AXES, RATING_LABELS, radarValues, skillGroupsForPosition } from "@/lib/skills";
 import RadarChart from "./RadarChart";
+import { playLevelUp } from "@/lib/sfx";
 import type { Position, SkillSheet as Sheet } from "@/lib/types";
 
 export default function SkillSheet({
@@ -26,6 +28,14 @@ export default function SkillSheet({
     () => skillSheetsByTeamQuery(teamId),
     [teamId],
   );
+  const [members, setMembers] = useState<UserProfile[]>([]);
+  useEffect(() => {
+    getTeamMembers(teamId).then((m) => setMembers(m as UserProfile[]));
+  }, [teamId]);
+  const aSquad = useMemo(
+    () => new Set(members.filter((m) => m.squad === "A").map((m) => m.uid)),
+    [members],
+  );
   const groups = skillGroupsForPosition(position);
 
   const self = sheet?.self ?? {};
@@ -37,6 +47,7 @@ export default function SkillSheet({
     const prev = (side === "self" ? self[key] : coach[key]) ?? 0;
     if (v > prev) {
       setLevelUp({ label, from: prev, to: v });
+      playLevelUp();
       setTimeout(() => setLevelUp(null), 1600);
     }
     setRating(targetUid, teamId, side, key, v);
@@ -44,11 +55,17 @@ export default function SkillSheet({
 
   // Radar: this player's values vs. team average.
   const selfRadar = useMemo(() => radarValues(self), [self]);
+  // A チームが設定されていればその平均、なければチーム全体平均
+  const useASquad = aSquad.size > 0;
+  const avgLabel = useASquad ? "Aチーム平均" : "チーム平均";
   const avgRadar = useMemo(() => {
-    if (allSheets.length === 0) return RADAR_AXES.map(() => 0);
+    const base = useASquad
+      ? allSheets.filter((s) => aSquad.has(s.userId))
+      : allSheets;
+    if (base.length === 0) return RADAR_AXES.map(() => 0);
     const sums = RADAR_AXES.map(() => 0);
     const counts = RADAR_AXES.map(() => 0);
-    for (const s of allSheets) {
+    for (const s of base) {
       radarValues(s.self ?? {}).forEach((v, i) => {
         if (v > 0) {
           sums[i] += v;
@@ -57,7 +74,7 @@ export default function SkillSheet({
       });
     }
     return sums.map((sum, i) => (counts[i] ? sum / counts[i] : 0));
-  }, [allSheets]);
+  }, [allSheets, aSquad, useASquad]);
 
   const hasRadar = selfRadar.some((v) => v > 0);
 
@@ -82,7 +99,7 @@ export default function SkillSheet({
             <RadarChart labels={RADAR_AXES.map((a) => a.label)} self={selfRadar} avg={avgRadar} />
             <div className="flex items-center justify-center gap-4 text-xs">
               <Legend color="bg-brand-500" label="本人" />
-              <Legend color="bg-accent-500" label="チーム平均" />
+              <Legend color="bg-accent-500" label={avgLabel} />
             </div>
           </>
         ) : (

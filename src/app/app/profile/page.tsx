@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getTeamMembers } from "@/lib/db";
+import { getTeamMembers, updateMember } from "@/lib/db";
 import {
   POSITION_LABELS,
   ROLE_LABELS,
@@ -81,6 +81,19 @@ export default function ProfilePage() {
   async function handleLogout() {
     await logout();
     router.replace("/");
+  }
+
+  async function changeMember(
+    uid: string,
+    data: { role?: UserProfile["role"]; squad?: "A" | "B" | null },
+  ) {
+    setMembers((prev) => prev.map((m) => (m.uid === uid ? { ...m, ...data } : m)));
+    try {
+      await updateMember(uid, data);
+    } catch {
+      // 失敗時は再取得して整合
+      if (profile?.teamId) getTeamMembers(profile.teamId).then((m) => setMembers(m as UserProfile[]));
+    }
   }
 
   async function copyInviteUrl() {
@@ -242,18 +255,51 @@ export default function ProfilePage() {
         <p className="text-sm font-bold text-slate-700">
           メンバー（{members.length}人）
         </p>
+        {isCoach && (
+          <p className="mt-0.5 text-xs text-slate-500">
+            役割とA/Bチームを割り当てられます。
+          </p>
+        )}
         <ul className="mt-3 divide-y divide-slate-100">
           {members.map((m) => (
-            <li key={m.uid} className="flex items-center justify-between py-2">
-              <div className="flex items-center gap-2">
+            <li key={m.uid} className="flex items-center justify-between gap-2 py-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {m.jerseyNumber != null && (
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
                     {m.jerseyNumber}
                   </span>
                 )}
-                <span className="text-sm font-medium text-slate-800">{m.displayName}</span>
+                <span className="truncate text-sm font-medium text-slate-800">{m.displayName}</span>
+                {m.squad && (
+                  <span className={`chip shrink-0 ${m.squad === "A" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"}`}>
+                    {m.squad}
+                  </span>
+                )}
               </div>
-              <span className="chip bg-slate-100 text-slate-500">{ROLE_LABELS[m.role]}</span>
+              {isCoach && m.uid !== profile.uid ? (
+                <div className="flex shrink-0 gap-1">
+                  <select
+                    value={m.role}
+                    onChange={(e) => changeMember(m.uid, { role: e.target.value as typeof m.role })}
+                    className="rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-600"
+                  >
+                    {(Object.keys(ROLE_LABELS) as (keyof typeof ROLE_LABELS)[]).map((r) => (
+                      <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={m.squad ?? ""}
+                    onChange={(e) => changeMember(m.uid, { squad: (e.target.value || null) as "A" | "B" | null })}
+                    className="rounded-md border border-slate-200 bg-white px-1 py-0.5 text-xs text-slate-600"
+                  >
+                    <option value="">—</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                  </select>
+                </div>
+              ) : (
+                <span className="chip shrink-0 bg-slate-100 text-slate-500">{ROLE_LABELS[m.role]}</span>
+              )}
             </li>
           ))}
         </ul>

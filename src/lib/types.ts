@@ -28,6 +28,7 @@ export interface UserProfile {
   teamId: string | null;
   jerseyNumber?: number | null;
   position?: Position | null;
+  squad?: "A" | "B" | null;
   createdAt?: number;
 }
 

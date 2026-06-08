@@ -48,6 +48,7 @@ export const mapProfile = (r: Row): UserProfile => ({
   teamId: (r.team_id as string) ?? null,
   jerseyNumber: (r.jersey_number as number) ?? null,
   position: (r.position as UserProfile["position"]) ?? null,
+  squad: (r.squad as UserProfile["squad"]) ?? null,
   createdAt: ts(r.created_at),
 });
 
@@ -279,6 +280,18 @@ export async function joinTeamByCode(
     .eq("id", uid);
   if (upd.error) throw new Error(upd.error.message);
   return mapTeam(data);
+}
+
+/** 顧問が同一チームのメンバーのロール / A・B 編成を更新する。 */
+export async function updateMember(
+  uid: string,
+  data: { role?: Role; squad?: "A" | "B" | null },
+): Promise<void> {
+  const patch: Row = {};
+  if (data.role !== undefined) patch.role = data.role;
+  if (data.squad !== undefined) patch.squad = data.squad;
+  const { error } = await supabase.from("profiles").update(patch).eq("id", uid);
+  if (error) throw new Error(error.message);
 }
 
 export async function getTeamMembers(teamId: string): Promise<UserProfile[]> {

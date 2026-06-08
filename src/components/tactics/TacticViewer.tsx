@@ -16,6 +16,7 @@ export default function TacticViewer({ tactic }: { tactic: Tactic }) {
   const segments = Math.max(0, frames.length - 1);
   const [progress, setProgress] = useState(0); // 0 .. segments
   const [playing, setPlaying] = useState(false);
+  const [tilt, setTilt] = useState(false); // 疑似3D表示
   const raf = useRef<number | null>(null);
 
   const seg = Math.min(segments - 1, Math.max(0, Math.floor(progress)));
@@ -98,12 +99,32 @@ export default function TacticViewer({ tactic }: { tactic: Tactic }) {
 
   return (
     <div className="space-y-3">
-      <CourtCanvas
-        players={tactic.players}
-        positions={positions}
-        arrows={arrows}
-        trajectory={trajectory}
-      />
+      <div className="flex justify-end">
+        <button
+          onClick={() => setTilt((v) => !v)}
+          className={`chip ring-1 transition ${
+            tilt ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-600 ring-slate-200"
+          }`}
+        >
+          {tilt ? "2D表示" : "3D表示"}
+        </button>
+      </div>
+
+      <div
+        className="transition-transform duration-500"
+        style={
+          tilt
+            ? { transform: "perspective(820px) rotateX(42deg) scale(0.96)", transformOrigin: "center 70%", marginBottom: "-8%" }
+            : undefined
+        }
+      >
+        <CourtCanvas
+          players={tactic.players}
+          positions={positions}
+          arrows={arrows}
+          trajectory={trajectory}
+        />
+      </div>
 
       {/* timeline scrubber */}
       {segments > 0 && (
