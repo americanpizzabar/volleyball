@@ -73,3 +73,53 @@ export function rotateSlots(
   for (const [id, slot] of Object.entries(slotOf)) out[id] = map[slot];
   return out;
 }
+
+export interface Zone {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * 指定スロットの選手が「反則にならずに動ける範囲（セーフゾーン）」を、
+ * 他の5人の現在位置から算出。範囲が成立しない場合は null。
+ */
+export function safeZoneForSlot(slot: number, pos: Record<number, Pt>): Zone | null {
+  for (let s = 1; s <= 6; s++) if (!pos[s]) return null;
+  const X = (s: number) => pos[s].x;
+  const Y = (s: number) => pos[s].y;
+  let x0 = 3, x1 = 97, y0 = 3, y1 = 97;
+
+  switch (slot) {
+    case 1: // 後右：6より右、2より後ろ
+      x0 = X(6); y0 = Y(2); break;
+    case 2: // 前右：3より右、1より前
+      x0 = X(3); y1 = Y(1); break;
+    case 3: // 前中：4と2の間、6より前
+      x0 = X(4); x1 = X(2); y1 = Y(6); break;
+    case 4: // 前左：3より左、5より前
+      x1 = X(3); y1 = Y(5); break;
+    case 5: // 後左：6より左、4より後ろ
+      x1 = X(6); y0 = Y(4); break;
+    case 6: // 後中：5と1の間、3より後ろ
+      x0 = X(5); x1 = X(1); y0 = Y(3); break;
+    default:
+      return null;
+  }
+
+  x0 = Math.max(3, x0);
+  x1 = Math.min(97, x1);
+  y0 = Math.max(3, y0);
+  y1 = Math.min(97, y1);
+  if (x1 - x0 < 1 || y1 - y0 < 1) return null;
+  return { x0, y0, x1, y1 };
+}
+
+/** 点が指定スロットのセーフゾーン内かどうか。 */
+export function isInsideSafeZone(slot: number, pos: Record<number, Pt>): boolean {
+  const z = safeZoneForSlot(slot, pos);
+  if (!z) return false;
+  const p = pos[slot];
+  return p.x >= z.x0 && p.x <= z.x1 && p.y >= z.y0 && p.y <= z.y1;
+}

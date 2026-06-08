@@ -24,13 +24,17 @@ interface Props {
   onMove?: (playerId: string, x: number, y: number) => void;
   /** Pairs of token ids that violate positional-fault rules (drawn in red). */
   faults?: [string, string][];
+  /** Blue "safe zone" rectangle (0-100 coords) for the focused player. */
+  safeZone?: { x0: number; y0: number; x1: number; y1: number } | null;
+  /** Tint the whole court red (positional-fault warning). */
+  danger?: boolean;
   /** Smoothly transition token positions (for rotation animation). */
   animate?: boolean;
   className?: string;
 }
 
 /** SVG volleyball court with draggable player/ball tokens. Pure presentation. */
-export default function CourtCanvas({ players, positions, onMove, faults, animate, className }: Props) {
+export default function CourtCanvas({ players, positions, onMove, faults, safeZone, danger, animate, className }: Props) {
   const faultedIds = new Set((faults ?? []).flat());
   const svgRef = useRef<SVGSVGElement>(null);
   const dragId = useRef<string | null>(null);
@@ -80,6 +84,28 @@ export default function CourtCanvas({ players, positions, onMove, faults, animat
       <line x1="0" y1={NET_Y} x2="100" y2={NET_Y} stroke="#ffffff" strokeWidth="1.4" strokeDasharray="1.4 1.4" />
       <text x="50" y={NET_Y - 1.2} textAnchor="middle" fontSize="3" fill="#475569">ネット</text>
       <text x="6" y="97" fontSize="3" fill="#94a3b8">自コート</text>
+
+      {/* safe zone (blue, fades in) */}
+      {safeZone && (
+        <rect
+          x={safeZone.x0}
+          y={safeZone.y0}
+          width={safeZone.x1 - safeZone.x0}
+          height={safeZone.y1 - safeZone.y0}
+          rx="2"
+          fill="#3b82f6"
+          fillOpacity="0.18"
+          stroke="#2563eb"
+          strokeWidth="0.5"
+          strokeDasharray="2 1.5"
+          style={{ transition: "all 0.25s ease" }}
+        />
+      )}
+
+      {/* danger overlay (red flash) */}
+      {danger && (
+        <rect x="0" y="0" width="100" height="100" rx="3" fill="#ef4444" className="fault-blink" style={{ fillOpacity: 0.18 }} pointerEvents="none" />
+      )}
 
       {/* positional-fault lines (red dashed, blinking) */}
       {(faults ?? []).map(([a, b], i) => {

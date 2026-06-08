@@ -8,6 +8,7 @@ import type { UserProfile } from "@/lib/types";
 import {
   detectFaults,
   rotateSlots,
+  safeZoneForSlot,
   SLOT_BASE,
   SLOT_RECEIVE,
   type Pt,
@@ -79,16 +80,35 @@ export default function RotationSimulator() {
     return m;
   }, [tokens]);
 
-  const faults = useMemo(() => {
+  const slotPos = useMemo(() => {
     const pos: Record<number, Pt> = {};
     tokens.forEach((t) => (pos[t.slot] = { x: t.x, y: t.y }));
-    return detectFaults(pos);
+    return pos;
   }, [tokens]);
+
+  const faults = useMemo(() => detectFaults(slotPos), [slotPos]);
 
   const faultPairs = useMemo<[string, string][]>(
     () => faults.map((f) => [slotToId[f.a], slotToId[f.b]] as [string, string]),
     [faults, slotToId],
   );
+
+  // セーフゾーン：選択中の選手が反則にならず動ける範囲
+  const safeZone = useMemo(() => {
+    if (!selected) return null;
+    const t = tokens.find((x) => x.id === selected);
+    if (!t) return null;
+    return safeZoneForSlot(t.slot, slotPos);
+  }, [selected, tokens, slotPos]);
+
+  const danger = faults.length > 0;
+
+  // 反則に入った瞬間にバイブレーション
+  useEffect(() => {
+    if (danger && typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(180);
+    }
+  }, [danger]);
 
   function moveToken(id: string, x: number, y: number) {
     setAnimate(false);
@@ -180,10 +200,14 @@ export default function RotationSimulator() {
           positions={positions}
           onMove={moveToken}
           faults={faultPairs}
+          safeZone={safeZone}
+          danger={danger}
           animate={animate}
         />
         <p className="mt-2 text-center text-xs text-slate-400">
-          選手を指でドラッグして配置。番号はポジション番号(1〜6)です。
+          {selected
+            ? "青いゾーン内なら反則になりません。ドラッグして確かめよう。"
+            : "下の「交代」で選手を選ぶと、動ける範囲（青ゾーン）が表示されます。"}
         </p>
       </div>
 
@@ -205,11 +229,11 @@ export default function RotationSimulator() {
 
       {/* substitution */}
       <div className="card">
-        <p className="text-sm font-bold text-slate-700">交代（控えメンバー）</p>
+        <p className="text-sm font-bold text-slate-700">選手を選ぶ / 交代</p>
         <p className="mt-0.5 text-xs text-slate-500">
           {selected
-            ? "交代する控え選手をタップ"
-            : "コートの選手をタップ → 控え選手をタップで交代"}
+            ? "コートに青ゾーン表示中。控え選手をタップで交代もできます。"
+            : "選手をタップ → 動ける範囲(青ゾーン)を表示。控えをタップで交代。"}
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {tokens.map((t) => (
