@@ -61,6 +61,20 @@ export default function TacticsListPage() {
         <span className="text-2xl text-white/70">›</span>
       </Link>
 
+      <Link
+        href="/app/tactics/challenge"
+        className="card mb-4 flex items-center justify-between bg-gradient-to-r from-emerald-500 to-teal-500 text-white transition hover:opacity-95"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🎮</span>
+          <div>
+            <p className="font-bold">ローテ・マスター・チャレンジ</p>
+            <p className="text-xs text-white/80">かぶりを直す1分パズル。PERFECTを狙え！</p>
+          </div>
+        </div>
+        <span className="text-2xl text-white/70">›</span>
+      </Link>
+
       {tactics.length === 0 ? (
         <EmptyState
           icon="🏐"
