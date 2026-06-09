@@ -3,6 +3,7 @@
 import { supabase } from "./supabase/client";
 import type {
   FeatureRequest,
+  GachaPull,
   Goal,
   GoalStatus,
   GrowthVideo,
@@ -274,6 +275,36 @@ export function nutritionLogsQuery(teamId: string): QuerySpec<NutritionLog> {
     order: { col: "created_at", ascending: false },
     map: mapNutrition,
   };
+}
+
+// ---- Gacha -------------------------------------------------------------
+
+export const mapGachaPull = (r: Row): GachaPull => ({
+  id: r.id as string,
+  teamId: r.team_id as string,
+  userId: r.user_id as string,
+  rewardKey: r.reward_key as string,
+  rarity: r.rarity as string,
+  createdAt: ts(r.created_at),
+});
+
+export async function createGachaPull(data: {
+  teamId: string;
+  userId: string;
+  rewardKey: string;
+  rarity: string;
+}): Promise<void> {
+  const { error } = await supabase.from("gacha_pulls").insert({
+    team_id: data.teamId,
+    user_id: data.userId,
+    reward_key: data.rewardKey,
+    rarity: data.rarity,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export function gachaPullsByUserQuery(userId: string): QuerySpec<GachaPull> {
+  return { table: "gacha_pulls", filters: [{ col: "user_id", val: userId }], map: mapGachaPull };
 }
 
 // ---- Teams -------------------------------------------------------------

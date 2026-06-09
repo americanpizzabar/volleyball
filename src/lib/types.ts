@@ -187,6 +187,16 @@ export interface NutritionLog {
   createdAt?: number;
 }
 
+/** ガチャの抽選履歴。 */
+export interface GachaPull {
+  id: string;
+  teamId: string;
+  userId: string;
+  rewardKey: string;
+  rarity: string;
+  createdAt?: number;
+}
+
 export type GoalStatus = "active" | "done" | "dropped";
 
 export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {

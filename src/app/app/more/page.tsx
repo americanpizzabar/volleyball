@@ -6,6 +6,9 @@ import { ROLE_LABELS } from "@/lib/types";
 import { PageHeader } from "@/components/ui";
 
 const LINKS = [
+  { href: "/app/clubhouse", emoji: "🏠", label: "デジタル部室", desc: "活動量で部室がプロ仕様に進化" },
+  { href: "/app/gacha", emoji: "🎴", label: "ミラクル・ガチャ", desc: "コインでプロのコツをコレクション" },
+  { href: "/app/shadow", emoji: "🐉", label: "シャドウ・バトル", desc: "プロ統計をスタッツで疑似対戦" },
   { href: "/app/roster", emoji: "✨", label: "チーム・ステータス", desc: "好調オーラ・総合パワーで見える化" },
   { href: "/app/cards", emoji: "🃏", label: "プレーカード", desc: "ナイスプレーがレア度付きカードに" },
   { href: "/app/nutrition", emoji: "🍖", label: "栄養クエスト", desc: "食事でボスを討伐（チーム協力）" },
