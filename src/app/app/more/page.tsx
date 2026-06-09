@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/app/requests", emoji: "💡", label: "要望・情報共有", desc: "欲しい機能をリクエスト＆投票" },
   { href: "/app/stats/totals", emoji: "🏆", label: "通算成績", desc: "個人・チームの累計スタッツ" },
   { href: "/app/profile", emoji: "⚙️", label: "設定・メンバー", desc: "プロフィール・招待コード" },
+  { href: "/app/help", emoji: "📕", label: "使い方ガイド", desc: "全機能のマニュアル" },
 ];
 
 export default function MorePage() {

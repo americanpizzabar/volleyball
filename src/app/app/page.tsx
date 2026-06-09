@@ -90,6 +90,7 @@ export default function Dashboard() {
         <QuickAction href="/app/cards" emoji="🃏" label="カード" />
         <QuickAction href="/app/nutrition" emoji="🍖" label="栄養クエスト" />
         <QuickAction href="/app/live" emoji="📣" label="応援ライブ" />
+        <QuickAction href="/app/help" emoji="📕" label="使い方" />
         <QuickAction href="/app/requests" emoji="💡" label="要望・投票" />
       </section>
 
