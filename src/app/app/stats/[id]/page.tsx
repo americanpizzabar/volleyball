@@ -142,6 +142,11 @@ export default function MatchPage() {
       <PageHeader
         title={`vs ${match.opponent}`}
         subtitle={`${match.date}${match.tournament ? " ・ " + match.tournament : ""}`}
+        action={
+          <Link href="/app/live" className="btn-ghost px-3 py-2 text-xs">
+            📣 応援ライブ
+          </Link>
+        }
       />
 
       {/* Scoreboard */}
