@@ -47,6 +47,20 @@ export default function TacticsListPage() {
         <span className="text-2xl text-white/70">›</span>
       </Link>
 
+      <Link
+        href="/app/tactics/library"
+        className="card mb-4 flex items-center justify-between bg-gradient-to-r from-amber-500 to-orange-500 text-white transition hover:opacity-95"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📖</span>
+          <div>
+            <p className="font-bold">プロ戦術ライブラリ</p>
+            <p className="text-xs text-white/80">シンクロ攻撃・時間差・ブロード等をアニメで予習</p>
+          </div>
+        </div>
+        <span className="text-2xl text-white/70">›</span>
+      </Link>
+
       {tactics.length === 0 ? (
         <EmptyState
           icon="🏐"
