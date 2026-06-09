@@ -8,6 +8,7 @@ import type {
   GrowthVideo,
   JournalEntry,
   Match,
+  NutritionLog,
   Practice,
   RequestStatus,
   Role,
@@ -234,6 +235,44 @@ export function skillSheetsByTeamQuery(teamId: string): QuerySpec<SkillSheet> {
     table: "skill_sheets",
     filters: [{ col: "team_id", val: teamId }],
     map: mapSkillSheet,
+  };
+}
+
+// ---- Nutrition quest (マッスル・モンスター・バトル) --------------------
+
+export const mapNutrition = (r: Row): NutritionLog => ({
+  id: r.id as string,
+  teamId: r.team_id as string,
+  userId: r.user_id as string,
+  userName: r.user_name as string,
+  date: r.date as string,
+  tags: (r.tags as string[]) ?? [],
+  power: (r.power as number) ?? 0,
+  combo: (r.combo as string) ?? "",
+  createdAt: ts(r.created_at),
+});
+
+export async function createNutritionLog(
+  data: Omit<NutritionLog, "id" | "createdAt">,
+): Promise<void> {
+  const { error } = await supabase.from("nutrition_logs").insert({
+    team_id: data.teamId,
+    user_id: data.userId,
+    user_name: data.userName,
+    date: data.date,
+    tags: data.tags,
+    power: data.power,
+    combo: data.combo,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export function nutritionLogsQuery(teamId: string): QuerySpec<NutritionLog> {
+  return {
+    table: "nutrition_logs",
+    filters: [{ col: "team_id", val: teamId }],
+    order: { col: "created_at", ascending: false },
+    map: mapNutrition,
   };
 }
 

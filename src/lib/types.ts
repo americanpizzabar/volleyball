@@ -174,6 +174,19 @@ export interface GrowthVideo {
   createdAt?: number;
 }
 
+/** 栄養クエストの食事ログ（機能：マッスル・モンスター・バトル）。 */
+export interface NutritionLog {
+  id: string;
+  teamId: string;
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD
+  tags: string[];
+  power: number;
+  combo: string;
+  createdAt?: number;
+}
+
 export type GoalStatus = "active" | "done" | "dropped";
 
 export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
