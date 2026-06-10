@@ -75,7 +75,7 @@ export default function VideoSection({
       setTitle("");
       setTag("");
     } catch {
-      setError("アップロードに失敗しました。Supabase Storageの設定をご確認ください。");
+      setError("アップロードに失敗しました。Vercel Blobの設定（BLOB_READ_WRITE_TOKEN）をご確認ください。");
     }
     setBusy(false);
   }

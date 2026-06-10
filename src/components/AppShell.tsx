@@ -103,11 +103,11 @@ function SetupNotice() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
       <div className="text-4xl">🛠️</div>
-      <h1 className="text-lg font-bold text-slate-900">Firebaseの設定が必要です</h1>
+      <h1 className="text-lg font-bold text-slate-900">セットアップが必要です</h1>
       <p className="text-sm text-slate-500">
         <code className="rounded bg-slate-100 px-1">.env.local</code>{" "}
-        にFirebaseの設定値を入力してください。手順は{" "}
-        <code className="rounded bg-slate-100 px-1">README.md</code> を参照。
+        にNeon（DATABASE_URL）とNeon Auth（Stack）の設定値を入力してください。手順は{" "}
+        <code className="rounded bg-slate-100 px-1">NEON_SETUP.md</code> を参照。
       </p>
     </div>
   );

@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { joinTeamByCode } from "@/lib/db";
+import { getTeamNameByCode, joinTeamByCode } from "@/lib/db";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { ROLE_LABELS, type Role } from "@/lib/types";
 import { Spinner } from "@/components/ui";
@@ -30,9 +29,9 @@ export default function JoinPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase.rpc("team_name_for_code", { code });
+      const name = await getTeamNameByCode(code).catch(() => null);
       if (!active) return;
-      setTeamName((data as string) ?? null);
+      setTeamName(name);
       setChecking(false);
     })();
     return () => {
@@ -61,10 +60,8 @@ export default function JoinPage() {
     setError("");
     try {
       await signUp(email, password, displayName.trim());
-      await signIn(email, password); // 自動確認トリガーにより即ログイン可
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) throw new Error("サインインに失敗しました。");
-      await join(data.user.id);
+      await signIn(email, password); // サインアップ後そのままログイン
+      await join(""); // uid はサーバー側セッションから解決される
     } catch (err) {
       setError(authErrorMessage(err));
       setBusy(false);

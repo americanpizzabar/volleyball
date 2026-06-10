@@ -8,13 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { User } from "@supabase/supabase-js";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import { mapProfile, mapTeam } from "@/lib/db";
+import { useStackApp, useUser } from "@stackframe/stack";
+import { getOrCreateProfile, loadTeam } from "@/lib/server/actions";
 import type { Team, UserProfile } from "@/lib/types";
 
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   profile: UserProfile | null;
   team: Team | null;
   loading: boolean;
@@ -26,70 +30,56 @@ interface AuthContextValue {
   ) => Promise<{ needsConfirmation: boolean }>;
   signIn: (email: string, password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
-  updatePassword: (password: string) => Promise<void>;
+  updatePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function errMessage(e: unknown, fallback: string): string {
+  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
+  return fallback;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const app = useStackApp();
+  const stackUser = useUser();
+  const uid = stackUser?.id ?? null;
+
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Track the auth session.
+  const user = useMemo<AuthUser | null>(
+    () => (stackUser ? { id: stackUser.id, email: stackUser.primaryEmail ?? "" } : null),
+    [stackUser],
+  );
+
+  // Load (or lazily create) the profile row whenever the signed-in user changes.
   useEffect(() => {
-    if (!isSupabaseConfigured) {
+    let cancelled = false;
+    if (!uid) {
+      setProfile(null);
+      setTeam(null);
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      if (!data.session) setLoading(false);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session) {
-        setProfile(null);
-        setTeam(null);
+    setLoading(true);
+    getOrCreateProfile()
+      .then((p) => {
+        if (cancelled) return;
+        setProfile(p);
         setLoading(false);
-      }
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  // Load + subscribe to the user's profile row.
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-
-    async function loadProfile() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (cancelled) return;
-      setProfile(data ? mapProfile(data) : null);
-      setLoading(false);
-    }
-    loadProfile();
-
-    const channel = supabase
-      .channel(`rt:profile:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
-        () => loadProfile(),
-      )
-      .subscribe();
-
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfile(null);
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [uid]);
 
   // Load the user's team whenever the team id changes.
   useEffect(() => {
@@ -99,14 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
-    supabase
-      .from("teams")
-      .select("*")
-      .eq("id", teamId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!cancelled) setTeam(data ? mapTeam(data) : null);
-      });
+    loadTeam(teamId).then((t) => {
+      if (!cancelled) setTeam(t);
+    });
     return () => {
       cancelled = true;
     };
@@ -118,39 +103,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       team,
       loading,
-      configured: isSupabaseConfigured,
+      configured: Boolean(process.env.NEXT_PUBLIC_STACK_PROJECT_ID),
       async signUp(email, password, displayName) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { display_name: displayName } },
-        });
-        if (error) throw error;
-        // profiles row is created by the on_auth_user_created trigger.
-        // No session means email confirmation is required before sign-in.
-        return { needsConfirmation: !data.session };
+        const res = await app.signUpWithCredential({ email, password, noRedirect: true });
+        if (res.status === "error") throw new Error(errMessage(res.error, "登録に失敗しました。"));
+        // Persist the chosen display name to our profiles table.
+        try {
+          await getOrCreateProfile(displayName);
+        } catch {
+          /* profile is also created lazily on first load */
+        }
+        return { needsConfirmation: false };
       },
       async signIn(email, password) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const res = await app.signInWithCredential({ email, password, noRedirect: true });
+        if (res.status === "error") throw new Error(errMessage(res.error, "ログインに失敗しました。"));
       },
       async sendPasswordReset(email) {
-        const redirectTo =
-          typeof window !== "undefined"
-            ? `${window.location.origin}/reset-password`
-            : undefined;
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-        if (error) throw error;
+        const res = await app.sendForgotPasswordEmail(email);
+        if (res.status === "error") throw new Error(errMessage(res.error, "送信に失敗しました。"));
       },
-      async updatePassword(password) {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
+      async updatePassword(oldPassword, newPassword) {
+        if (!stackUser) throw new Error("ログインが必要です。");
+        const err = await stackUser.updatePassword({ oldPassword, newPassword });
+        if (err) throw new Error(errMessage(err, "変更に失敗しました。"));
       },
       async logout() {
-        await supabase.auth.signOut();
+        await stackUser?.signOut();
       },
     }),
-    [user, profile, team, loading],
+    [user, profile, team, loading, app, stackUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

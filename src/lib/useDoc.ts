@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "./supabase/client";
-import type { Row } from "./db";
+import type { Row } from "./mappers";
+import { fetchRow } from "./server/actions";
 
 /**
- * Subscribe to a single row by id (default column "id"), mapped to type T.
- * Stays live via Realtime. `map` must be a stable reference (module-level).
+ * Fetch a single row by id (default column "id"), mapped to type T, via a
+ * server function. Realtime was removed in the Neon migration.
+ * `map` must be a stable reference (module-level).
  */
 export function useDoc<T>(
   table: string,
@@ -25,32 +26,19 @@ export function useDoc<T>(
     }
     let cancelled = false;
     setLoading(true);
-
-    async function run() {
-      const { data: row } = await supabase
-        .from(table)
-        .select("*")
-        .eq(idColumn, id)
-        .maybeSingle();
-      if (cancelled) return;
-      setData(row ? map(row) : null);
-      setLoading(false);
-    }
-
-    run();
-
-    const channel = supabase
-      .channel(`rt:${table}:${idColumn}=${id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table, filter: `${idColumn}=eq.${id}` },
-        () => run(),
-      )
-      .subscribe();
-
+    fetchRow(table, idColumn, id)
+      .then((row) => {
+        if (cancelled) return;
+        setData(row ? map(row) : null);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData(null);
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
     };
   }, [table, id, idColumn, map]);
 

@@ -1,35 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
-import { useAuth } from "@/context/AuthContext";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useStackApp } from "@stackframe/stack";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { Spinner } from "@/components/ui";
 
-export default function ResetPasswordPage() {
-  const { updatePassword } = useAuth();
+function ResetPasswordInner() {
+  const app = useStackApp();
   const router = useRouter();
-  const [ready, setReady] = useState(false);
-  const [checking, setChecking] = useState(true);
+  const params = useSearchParams();
+  const code = params.get("code") ?? "";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-
-  // The recovery link establishes a session (detectSessionInUrl).
-  useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || session) setReady(true);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-      setChecking(false);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -44,9 +31,10 @@ export default function ResetPasswordPage() {
     setSubmitting(true);
     setError("");
     try {
-      await updatePassword(password);
+      const res = await app.resetPassword({ code, password });
+      if (res.status === "error") throw new Error("リンクが無効か期限切れの可能性があります。");
       setDone(true);
-      setTimeout(() => router.replace("/app"), 1200);
+      setTimeout(() => router.replace("/login"), 1400);
     } catch (err) {
       setError(authErrorMessage(err));
       setSubmitting(false);
@@ -64,11 +52,7 @@ export default function ResetPasswordPage() {
 
       <h1 className="text-2xl font-bold text-slate-900">新しいパスワード</h1>
 
-      {checking ? (
-        <div className="mt-8 flex justify-center">
-          <Spinner className="text-brand-600" />
-        </div>
-      ) : !ready ? (
+      {!code ? (
         <div className="mt-6 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
           <p className="text-sm text-amber-800">
             リンクが無効か期限切れの可能性があります。もう一度お試しください。
@@ -112,5 +96,13 @@ export default function ResetPasswordPage() {
         </form>
       )}
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }

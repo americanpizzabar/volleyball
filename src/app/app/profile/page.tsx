@@ -2,9 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
-import { getTeamMembers, updateMember } from "@/lib/db";
+import { getTeamMembers, updateMember, updateProfile } from "@/lib/db";
 import {
   POSITION_LABELS,
   ROLE_LABELS,
@@ -26,6 +25,7 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [members, setMembers] = useState<UserProfile[]>([]);
   const [copied, setCopied] = useState(false);
+  const [curPw, setCurPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
@@ -54,14 +54,11 @@ export default function ProfilePage() {
     if (!profile) return;
     setSaving(true);
     setSaved(false);
-    await supabase
-      .from("profiles")
-      .update({
-        display_name: displayName.trim() || profile.displayName,
-        jersey_number: jersey ? Number(jersey) : null,
-        position: position || null,
-      })
-      .eq("id", profile.uid);
+    await updateProfile({
+      displayName: displayName.trim() || profile.displayName,
+      jerseyNumber: jersey ? Number(jersey) : null,
+      position: position || null,
+    });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -130,12 +127,13 @@ export default function ProfilePage() {
     setPwBusy(true);
     setPwMsg("");
     try {
-      await updatePassword(newPw);
+      await updatePassword(curPw, newPw);
+      setCurPw("");
       setNewPw("");
       setPwMsg("変更しました ✓");
       setTimeout(() => setPwMsg(""), 2500);
     } catch {
-      setPwMsg("変更に失敗しました。再ログイン後にお試しください。");
+      setPwMsg("変更に失敗しました。現在のパスワードをご確認ください。");
     }
     setPwBusy(false);
   }
@@ -222,8 +220,16 @@ export default function ProfilePage() {
       <div className="card space-y-3">
         <p className="text-sm font-bold text-slate-700">パスワード変更</p>
         <p className="text-xs text-slate-500">
-          メール不要。新しいパスワードを入力して変更できます。
+          メール不要。現在のパスワードと新しいパスワードを入力して変更できます。
         </p>
+        <input
+          type="password"
+          className="input"
+          placeholder="現在のパスワード"
+          autoComplete="current-password"
+          value={curPw}
+          onChange={(e) => setCurPw(e.target.value)}
+        />
         <input
           type="password"
           className="input"
@@ -243,7 +249,7 @@ export default function ProfilePage() {
         )}
         <button
           onClick={handleChangePassword}
-          disabled={pwBusy || !newPw}
+          disabled={pwBusy || !newPw || !curPw}
           className="btn-ghost w-full"
         >
           {pwBusy ? <Spinner /> : "パスワードを変更"}

@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { useCollection } from "@/lib/useCollection";
 import { teamStatsQuery } from "@/lib/db";
@@ -34,7 +32,6 @@ export default function LivePage() {
   const [floaters, setFloaters] = useState<Floater[]>([]);
   const [banner, setBanner] = useState<string | null>(null);
   const [text, setText] = useState("");
-  const channelRef = useRef<RealtimeChannel | null>(null);
   const idRef = useRef(0);
 
   const addFloater = useCallback((emoji: string) => {
@@ -48,31 +45,15 @@ export default function LivePage() {
     for (let i = 0; i < n; i++) setTimeout(() => addFloater(emoji), i * 120);
   }, [addFloater]);
 
-  // realtime broadcast channel
-  useEffect(() => {
-    if (!teamId) return;
-    const ch = supabase.channel(`live:${teamId}`, { config: { broadcast: { self: true } } });
-    ch.on("broadcast", { event: "cheer" }, ({ payload }) => addFloater(payload.emoji as string));
-    ch.on("broadcast", { event: "praise" }, ({ payload }) => {
-      setBanner(payload.text as string);
-      burst("📣", 3);
-      setTimeout(() => setBanner(null), 2600);
-    });
-    ch.subscribe();
-    channelRef.current = ch;
-    return () => {
-      supabase.removeChannel(ch);
-      channelRef.current = null;
-    };
-  }, [teamId, addFloater, burst]);
-
   function sendCheer(emoji: string) {
-    channelRef.current?.send({ type: "broadcast", event: "cheer", payload: { emoji } });
+    addFloater(emoji);
   }
   function sendPraise() {
     const t = text.trim();
     if (!t) return;
-    channelRef.current?.send({ type: "broadcast", event: "praise", payload: { text: t } });
+    setBanner(t);
+    burst("📣", 3);
+    setTimeout(() => setBanner(null), 2600);
     setText("");
   }
 
@@ -104,7 +85,7 @@ export default function LivePage() {
 
   return (
     <div className="relative">
-      <PageHeader title="コート・エフェクト・ライブ" subtitle="みんなで応援を送ろう！" />
+      <PageHeader title="コート・エフェクト・ライブ" subtitle="応援エフェクトで盛り上げよう！" />
 
       {/* live stage */}
       <div className="relative h-[55vh] overflow-hidden rounded-2xl bg-gradient-to-b from-brand-700 to-slate-900 text-white">
@@ -129,7 +110,7 @@ export default function LivePage() {
         )}
 
         <div className="absolute inset-x-0 bottom-2 text-center text-xs text-white/60">
-          タップした応援は、見ている全員の画面に流れます
+          タップした応援が画面に弾けます
         </div>
       </div>
 
