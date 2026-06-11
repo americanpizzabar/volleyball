@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { Geist } from "next/font/google";
 import { StackProvider, StackTheme } from "@stackframe/stack";
 import "./globals.css";
@@ -34,7 +35,17 @@ export default function RootLayout({
       <body className="min-h-full">
         <StackProvider app={stackServerApp}>
           <StackTheme>
-            <AuthProvider>{children}</AuthProvider>
+            {/* Stack's client hooks (useUser) bail out to client-side rendering
+                during SSR; a Suspense boundary catches that so pages don't 500. */}
+            <Suspense
+              fallback={
+                <div className="grid min-h-dvh place-items-center bg-slate-50 text-slate-400">
+                  読み込み中…
+                </div>
+              }
+            >
+              <AuthProvider>{children}</AuthProvider>
+            </Suspense>
           </StackTheme>
         </StackProvider>
       </body>
