@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useStackApp } from "@stackframe/stack";
+import { authClient } from "@/lib/auth/client";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { Spinner } from "@/components/ui";
 
 function ResetPasswordInner() {
-  const app = useStackApp();
   const router = useRouter();
   const params = useSearchParams();
-  const code = params.get("code") ?? "";
+  // Better Auth includes the reset token as ?token=…; keep ?code= as a fallback.
+  const code = params.get("token") ?? params.get("code") ?? "";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -31,8 +31,8 @@ function ResetPasswordInner() {
     setSubmitting(true);
     setError("");
     try {
-      const res = await app.resetPassword({ code, password });
-      if (res.status === "error") throw new Error("リンクが無効か期限切れの可能性があります。");
+      const res = await authClient.resetPassword({ newPassword: password, token: code });
+      if (res.error) throw new Error("リンクが無効か期限切れの可能性があります。");
       setDone(true);
       setTimeout(() => router.replace("/login"), 1400);
     } catch (err) {

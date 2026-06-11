@@ -1,9 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Suspense } from "react";
 import { Geist } from "next/font/google";
-import { StackProvider, StackTheme } from "@stackframe/stack";
 import "./globals.css";
-import { stackServerApp } from "@/stack/server";
 import { AuthProvider } from "@/context/AuthContext";
 
 const geistSans = Geist({
@@ -33,21 +30,7 @@ export default function RootLayout({
   return (
     <html lang="ja" className={`${geistSans.variable} h-full antialiased`}>
       <body className="min-h-full">
-        <StackProvider app={stackServerApp}>
-          <StackTheme>
-            {/* Stack's client hooks (useUser) bail out to client-side rendering
-                during SSR; a Suspense boundary catches that so pages don't 500. */}
-            <Suspense
-              fallback={
-                <div className="grid min-h-dvh place-items-center bg-slate-50 text-slate-400">
-                  読み込み中…
-                </div>
-              }
-            >
-              <AuthProvider>{children}</AuthProvider>
-            </Suspense>
-          </StackTheme>
-        </StackProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

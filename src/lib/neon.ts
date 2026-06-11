@@ -1,6 +1,6 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
-import { stackServerApp } from "@/stack/server";
+import { auth } from "@/lib/auth/server";
 
 // Neon serverless (HTTP) driver. DATABASE_URL is provided by the Neon ↔ Vercel
 // integration. A syntactically-valid placeholder keeps the build working before
@@ -12,21 +12,30 @@ const connectionString =
 
 export const sql = neon(connectionString);
 
-/** The Stack Auth user id of the current request, or null when signed out. */
-export async function currentUserId(): Promise<string | null> {
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+}
+
+/** The Better Auth session user for the current request, or null when signed out. */
+async function sessionUser(): Promise<AuthUser | null> {
   try {
-    const user = await stackServerApp.getUser();
-    return user?.id ?? null;
+    const { data } = await auth.getSession();
+    const u = data?.user;
+    if (!u) return null;
+    return { id: u.id, email: u.email ?? "", name: u.name ?? "" };
   } catch {
     return null;
   }
 }
 
-/** The full Stack Auth user (for email / display name on first sign-in). */
-export async function currentStackUser() {
-  try {
-    return await stackServerApp.getUser();
-  } catch {
-    return null;
-  }
+/** The Neon Auth user id of the current request, or null when signed out. */
+export async function currentUserId(): Promise<string | null> {
+  return (await sessionUser())?.id ?? null;
+}
+
+/** The full Neon Auth user (for email / display name on first sign-in). */
+export async function currentAuthUser(): Promise<AuthUser | null> {
+  return sessionUser();
 }

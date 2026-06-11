@@ -8,8 +8,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useStackApp, useUser } from "@stackframe/stack";
-import { getOrCreateProfile, loadTeam } from "@/lib/server/actions";
+import { authClient } from "@/lib/auth/client";
+import { getOrCreateProfile, loadTeam, getAuthConfigured } from "@/lib/server/actions";
 import type { Team, UserProfile } from "@/lib/types";
 
 interface AuthUser {
@@ -37,49 +37,61 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function errMessage(e: unknown, fallback: string): string {
-  if (e && typeof e === "object" && "message" in e) return String((e as { message: unknown }).message);
+  if (e && typeof e === "object" && "message" in e) {
+    return String((e as { message: unknown }).message) || fallback;
+  }
   return fallback;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const app = useStackApp();
-  const stackUser = useUser();
-  const uid = stackUser?.id ?? null;
+  // Better Auth reactive session (nanostore-backed; safe during SSR — no suspend).
+  const { data: session, isPending } = authClient.useSession();
+  const sessionUser = session?.user ?? null;
+  const uid = sessionUser?.id ?? null;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [configured, setConfigured] = useState(true);
 
   const user = useMemo<AuthUser | null>(
-    () => (stackUser ? { id: stackUser.id, email: stackUser.primaryEmail ?? "" } : null),
-    [stackUser],
+    () => (sessionUser ? { id: sessionUser.id, email: sessionUser.email ?? "" } : null),
+    [sessionUser],
   );
+
+  // Probe (once) whether the Neon Auth env vars are wired up.
+  useEffect(() => {
+    getAuthConfigured()
+      .then(setConfigured)
+      .catch(() => setConfigured(false));
+  }, []);
 
   // Load (or lazily create) the profile row whenever the signed-in user changes.
   useEffect(() => {
+    if (isPending) return; // wait for the session to settle first
     let cancelled = false;
     if (!uid) {
       setProfile(null);
       setTeam(null);
-      setLoading(false);
+      setProfileLoading(false);
       return;
     }
-    setLoading(true);
+    setProfileLoading(true);
     getOrCreateProfile()
       .then((p) => {
         if (cancelled) return;
         setProfile(p);
-        setLoading(false);
+        setProfileLoading(false);
       })
       .catch(() => {
         if (cancelled) return;
         setProfile(null);
-        setLoading(false);
+        setProfileLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [uid]);
+  }, [uid, isPending]);
 
   // Load the user's team whenever the team id changes.
   useEffect(() => {
@@ -97,16 +109,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [profile?.teamId]);
 
+  const loading = isPending || profileLoading;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       profile,
       team,
       loading,
-      configured: Boolean(process.env.NEXT_PUBLIC_STACK_PROJECT_ID),
+      configured,
       async signUp(email, password, displayName) {
-        const res = await app.signUpWithCredential({ email, password, noRedirect: true });
-        if (res.status === "error") throw new Error(errMessage(res.error, "登録に失敗しました。"));
+        const res = await authClient.signUp.email({ email, password, name: displayName });
+        if (res.error) throw new Error(errMessage(res.error, "登録に失敗しました。"));
         // Persist the chosen display name to our profiles table.
         try {
           await getOrCreateProfile(displayName);
@@ -116,23 +130,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { needsConfirmation: false };
       },
       async signIn(email, password) {
-        const res = await app.signInWithCredential({ email, password, noRedirect: true });
-        if (res.status === "error") throw new Error(errMessage(res.error, "ログインに失敗しました。"));
+        const res = await authClient.signIn.email({ email, password });
+        if (res.error) throw new Error(errMessage(res.error, "ログインに失敗しました。"));
       },
       async sendPasswordReset(email) {
-        const res = await app.sendForgotPasswordEmail(email);
-        if (res.status === "error") throw new Error(errMessage(res.error, "送信に失敗しました。"));
+        const redirectTo =
+          typeof window !== "undefined" ? `${window.location.origin}/reset-password` : undefined;
+        const res = await authClient.requestPasswordReset({ email, redirectTo });
+        if (res.error) throw new Error(errMessage(res.error, "送信に失敗しました。"));
       },
       async updatePassword(oldPassword, newPassword) {
-        if (!stackUser) throw new Error("ログインが必要です。");
-        const err = await stackUser.updatePassword({ oldPassword, newPassword });
-        if (err) throw new Error(errMessage(err, "変更に失敗しました。"));
+        const res = await authClient.changePassword({
+          currentPassword: oldPassword,
+          newPassword,
+        });
+        if (res.error) throw new Error(errMessage(res.error, "変更に失敗しました。"));
       },
       async logout() {
-        await stackUser?.signOut();
+        await authClient.signOut();
       },
     }),
-    [user, profile, team, loading, app, stackUser],
+    [user, profile, team, loading, configured],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

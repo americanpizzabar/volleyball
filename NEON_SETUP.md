@@ -6,7 +6,7 @@
 | 役割            | 使用サービス                          |
 | --------------- | ------------------------------------- |
 | データベース    | **Neon** (Postgres / Vercel連携)      |
-| 認証（ログイン）| **Neon Auth**（Stack Auth）           |
+| 認証（ログイン）| **Neon Auth**（Better Auth）          |
 | 動画ストレージ  | **Vercel Blob**                       |
 | リアルタイム    | （廃止：画面表示時・再読込時に取得）  |
 
@@ -26,14 +26,21 @@
 
 ## 2. Neon Auth（ログイン）を有効化
 
-1. Neon プロジェクトの **Auth** タブで **Neon Auth** を有効化します。
-2. 生成された次のキーを Vercel の環境変数に設定します。
-   - `NEXT_PUBLIC_STACK_PROJECT_ID`（公開）
-   - `NEXT_PUBLIC_STACK_PUBLISHABLE_CLIENT_KEY`（公開）
-   - `STACK_SECRET_SERVER_KEY`（秘密）
-3. Stack のダッシュボードで **Email/Password** サインインを有効化します。
-   - メール確認を不要にしたい場合は「Require email verification」をオフに。
-   - パスワード再設定メールのリンク先は既定で `/handler/reset-password` です。
+Neon Auth は **Better Auth** ベースのマネージド認証です。ブラウザは同一オリジンの
+`/api/auth/*`（`src/app/api/auth/[...path]/route.ts`）経由で Neon Auth サーバーに
+プロキシされるため、セッション Cookie はファーストパーティのまま扱われます。
+
+1. Neon プロジェクトの **Auth** タブで Auth を有効化します。
+2. **Configuration → Project Info** の **Auth URL** をコピーし、Vercel の環境変数に
+   設定します。
+   - `NEON_AUTH_BASE_URL` … 例: `https://ep-xxxx.neonauth.REGION.aws.neon.tech/neondb/auth`
+   - `NEON_AUTH_COOKIE_SECRET` … セッション Cookie の署名鍵（**32文字以上**のランダム文字列）。
+     生成例: `openssl rand -base64 32`
+   - どちらもサーバー専用（ブラウザには出ません）。
+3. **Authentication** で **Sign-up with Email**（Email/Password）を有効化します。
+4. **Domains** に本番ドメイン（例: `https://<your-app>.vercel.app`）を追加します。
+   ローカル開発では **Allow Localhost** を ON のままにします。
+   - パスワード再設定メールのリンク先はアプリの `/reset-password`（`?token=…`）です。
 
 ## 3. Vercel Blob（動画）を有効化
 
@@ -56,7 +63,7 @@ npm run dev
 
 - **リアルタイム購読は廃止**。一覧・詳細はページ表示時／再読込時に取得します。
   応援ライブ（`/app/live`）のエフェクトは端末内ローカル表示になりました。
-- ユーザーIDは Neon Auth (Stack) のID（text）。`profiles.id` がこれに対応します。
+- ユーザーIDは Neon Auth (Better Auth) のID（text）。`profiles.id` がこれに対応します。
 - 配列カラム（`voters` / `tactic_ids` / `practice_ids` / `tags`）は jsonb 配列で保持。
 - 旧 Supabase 用の `supabase/migrations/` は参照用に残してありますが、
   新環境では `neon/schema.sql` を使用してください。

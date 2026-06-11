@@ -105,8 +105,10 @@ function SetupNotice() {
       <div className="text-4xl">🛠️</div>
       <h1 className="text-lg font-bold text-slate-900">セットアップが必要です</h1>
       <p className="text-sm text-slate-500">
-        <code className="rounded bg-slate-100 px-1">.env.local</code>{" "}
-        にNeon（DATABASE_URL）とNeon Auth（Stack）の設定値を入力してください。手順は{" "}
+        Neon（<code className="rounded bg-slate-100 px-1">DATABASE_URL</code>）と
+        Neon Auth（<code className="rounded bg-slate-100 px-1">NEON_AUTH_BASE_URL</code> /{" "}
+        <code className="rounded bg-slate-100 px-1">NEON_AUTH_COOKIE_SECRET</code>）の
+        環境変数を設定してください。手順は{" "}
         <code className="rounded bg-slate-100 px-1">NEON_SETUP.md</code> を参照。
       </p>
     </div>

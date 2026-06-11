@@ -4,7 +4,8 @@
 // client via POST; auth + authorization are enforced here (this replaces the
 // Supabase Row-Level-Security policies). The browser never touches Neon directly.
 import { put, del } from "@vercel/blob";
-import { sql, currentUserId, currentStackUser } from "../neon";
+import { sql, currentUserId, currentAuthUser } from "../neon";
+import { isAuthConfigured } from "@/lib/auth/server";
 import {
   mapTeam,
   mapProfile,
@@ -132,9 +133,14 @@ export async function fetchRow(
 
 // ---- profile / team ----------------------------------------------------
 
-/** Ensure a profiles row exists for the signed-in Stack user; return it mapped. */
+/** Whether Neon Auth env vars are present (drives the client-side setup notice). */
+export async function getAuthConfigured(): Promise<boolean> {
+  return isAuthConfigured;
+}
+
+/** Ensure a profiles row exists for the signed-in Neon Auth user; return it mapped. */
 export async function getOrCreateProfile(displayName?: string): Promise<UserProfile | null> {
-  const user = await currentStackUser();
+  const user = await currentAuthUser();
   if (!user) return null;
   const existing = await profileRow(user.id);
   if (existing) {
@@ -145,13 +151,13 @@ export async function getOrCreateProfile(displayName?: string): Promise<UserProf
     }
     return mapProfile(existing);
   }
-  const name = displayName || user.displayName || user.primaryEmail?.split("@")[0] || "";
+  const name = displayName || user.name || user.email?.split("@")[0] || "";
   const rows = (await sql.query(
     `insert into profiles (id, email, display_name, role)
      values ($1, $2, $3, 'player')
      on conflict (id) do update set email = excluded.email
      returning *`,
-    [user.id, user.primaryEmail ?? "", name],
+    [user.id, user.email ?? "", name],
   )) as Row[];
   return mapProfile(rows[0]);
 }
