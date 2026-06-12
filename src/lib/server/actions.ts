@@ -3,6 +3,7 @@
 // Server-side data access. Every export is a Server Function reachable from the
 // client via POST; auth + authorization are enforced here (this replaces the
 // Supabase Row-Level-Security policies). The browser never touches Neon directly.
+import { headers } from "next/headers";
 import { put, del } from "@vercel/blob";
 import { sql, currentUserId, currentAuthUser } from "../neon";
 import { isAuthConfigured } from "@/lib/auth/server";
@@ -23,6 +24,29 @@ const TEAM_SCOPED = new Set([
 ]);
 const READ_TABLES = new Set([...TEAM_SCOPED, "teams"]);
 const FILTER_COLS = new Set(["team_id", "match_id", "user_id", "author_id", "id", "invite_code"]);
+// Columns that may appear in an `order by` (whitelist; never interpolate raw input).
+const ORDER_COLS = new Set(["created_at", "updated_at", "date"]);
+// Roles a self-service join is allowed to assign (never "coach").
+const JOINABLE_ROLES = new Set<Role>(["player", "manager"]);
+// Cap on uploaded video size.
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB
+
+// Best-effort, per-instance rate limiter. Serverless instances are ephemeral, so
+// this throttles bursts (e.g. invite-code brute forcing) rather than guaranteeing
+// a global limit; a shared store would be needed for that.
+const rateBuckets = new Map<string, number[]>();
+function rateLimit(key: string, max: number, windowMs: number): void {
+  const now = Date.now();
+  const hits = (rateBuckets.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (hits.length >= max) throw new Error("試行回数が多すぎます。しばらくしてからお試しください。");
+  hits.push(now);
+  rateBuckets.set(key, hits);
+}
+async function rateLimitByIp(scope: string, max: number, windowMs: number): Promise<void> {
+  const h = await headers();
+  const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  rateLimit(`${scope}:${ip}`, max, windowMs);
+}
 
 async function requireUser(): Promise<string> {
   const uid = await currentUserId();
@@ -101,7 +125,7 @@ export async function fetchRows(spec: ReadSpec): Promise<Row[]> {
     where.push(`${f.col} = $${params.length}`);
   }
   let q = `select * from ${spec.table} where ${where.join(" and ")}`;
-  if (spec.order && IDENT.test(spec.order.col)) {
+  if (spec.order && ORDER_COLS.has(spec.order.col)) {
     q += ` order by ${spec.order.col} ${spec.order.ascending ? "asc" : "desc"}`;
   }
   if (spec.limit && Number.isInteger(spec.limit) && spec.limit > 0) {
@@ -122,7 +146,12 @@ export async function fetchRow(
 
   const params: string[] = [id];
   let q = `select * from ${table} where ${idColumn} = $1`;
-  if (table !== "teams") {
+  if (table === "teams") {
+    // A user may only ever read their own team (prevents reading arbitrary teams
+    // — and their invite codes — by id).
+    params.push(c.teamId);
+    q += ` and id = $2`;
+  } else {
     params.push(c.teamId);
     q += ` and team_id = $2`;
   }
@@ -163,13 +192,17 @@ export async function getOrCreateProfile(displayName?: string): Promise<UserProf
 }
 
 export async function loadTeam(teamId: string): Promise<Team | null> {
-  await requireUser();
+  const c = await ctx();
+  // Only expose the caller's own team.
+  if (!c.teamId || c.teamId !== teamId) return null;
   const rows = (await sql.query("select * from teams where id = $1 limit 1", [teamId])) as Row[];
   return rows[0] ? mapTeam(rows[0]) : null;
 }
 
 /** Public: resolve a team display name from an invite code (no auth needed). */
 export async function getTeamNameByCode(code: string): Promise<string | null> {
+  // Throttle invite-code guessing on this unauthenticated endpoint.
+  await rateLimitByIp("teamname", 20, 60_000);
   const rows = (await sql.query(
     "select name from teams where invite_code = $1 limit 1",
     [String(code).toUpperCase()],
@@ -226,6 +259,9 @@ export async function joinTeamByCode(
   role: Exclude<Role, "coach">,
 ): Promise<Team> {
   const uid = await requireUser();
+  // The `role` arg is client-supplied — never trust it to grant "coach".
+  if (!JOINABLE_ROLES.has(role as Role)) throw new Error("不正な役割が指定されました。");
+  rateLimit(`join:${uid}`, 10, 60_000);
   await getOrCreateProfile();
   const rows = (await sql.query(
     "select * from teams where invite_code = $1 limit 1",
@@ -509,11 +545,16 @@ export async function uploadVideo(
 ): Promise<{ url: string; path: string }> {
   const c = await ctx();
   assertTeam(c, teamId);
+  // Only accept actual video files within a sane size bound; this prevents using
+  // the public Blob store to host arbitrary (e.g. HTML) content or to run up cost.
+  if (!file.type.startsWith("video/")) throw new Error("動画ファイルのみアップロードできます。");
+  if (file.size > MAX_VIDEO_BYTES) throw new Error("ファイルサイズが大きすぎます（最大200MB）。");
+  void userId; // path is derived from the session user, not the client arg
   const safe = file.name.replace(/[^\w.-]/g, "_");
-  const path = `videos/${teamId}/${userId}/${Date.now()}_${safe}`;
+  const path = `videos/${teamId}/${c.uid}/${Date.now()}_${safe}`;
   const blob = await put(path, file, {
     access: "public",
-    contentType: file.type || "video/mp4",
+    contentType: file.type,
     token: process.env.BLOB_READ_WRITE_TOKEN,
     addRandomSuffix: false,
   });
@@ -523,10 +564,11 @@ export async function uploadVideo(
 export async function createVideo(data: Omit<GrowthVideo, "id" | "createdAt">): Promise<string> {
   const c = await ctx();
   assertTeam(c, data.teamId);
+  // Bind ownership to the session user rather than trusting client-supplied ids.
   const rows = (await sql.query(
     `insert into videos (team_id, user_id, user_name, title, skill_tag, url, storage_path, comments)
      values ($1,$2,$3,$4,$5,$6,$7,$8::jsonb) returning id`,
-    [data.teamId, data.userId, data.userName, data.title, data.skillTag, data.url, data.storagePath, JSON.stringify(data.comments)],
+    [data.teamId, c.uid, c.name || data.userName, data.title, data.skillTag, data.url, data.storagePath, JSON.stringify(data.comments)],
   )) as Row[];
   return rows[0].id as string;
 }
@@ -543,9 +585,18 @@ export async function addVideoComment(videoId: string, comment: VideoComment): P
 
 export async function deleteVideo(video: GrowthVideo): Promise<void> {
   const c = await ctx();
-  if (c.role !== "coach" && video.userId !== c.uid) throw new Error("権限がありません。");
+  // Authorize and resolve the blob to delete from the stored row — never from the
+  // client-supplied object (which could forge the owner or point del() at another
+  // team's file).
+  const rows = (await sql.query(
+    "select user_id, storage_path, url from videos where id = $1 and team_id = $2",
+    [video.id, c.teamId],
+  )) as Row[];
+  const row = rows[0];
+  if (!row) throw new Error("動画が見つかりません。");
+  if (c.role !== "coach" && row.user_id !== c.uid) throw new Error("権限がありません。");
   await sql.query("delete from videos where id = $1 and team_id = $2", [video.id, c.teamId]);
-  const target = video.storagePath || video.url;
+  const target = (row.storage_path as string) || (row.url as string);
   if (target) {
     try {
       await del(target, { token: process.env.BLOB_READ_WRITE_TOKEN });
