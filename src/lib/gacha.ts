@@ -35,15 +35,23 @@ export const REWARDS: GachaReward[] = [
 
 const WEIGHT: Record<GachaRarity, number> = { N: 60, R: 25, SR: 12, UR: 3 };
 
+const RARITIES: GachaRarity[] = ["N", "R", "SR", "UR"];
+
 export function drawReward(): GachaReward {
-  // まずレア度を重み抽選 → そのレア度から1枚
-  const total = REWARDS.reduce((s, r) => s + WEIGHT[r.rarity], 0);
+  // まずレア度を重み抽選（N60/R25/SR12/UR3）→ そのレア度から均等に1枚。
+  // （カード単位で重み付けするとレア度ごとの枚数差で確率が歪むため2段階で抽選する）
+  const total = RARITIES.reduce((s, r) => s + WEIGHT[r], 0);
   let roll = Math.random() * total;
-  for (const r of REWARDS) {
-    roll -= WEIGHT[r.rarity];
-    if (roll <= 0) return r;
+  let rarity: GachaRarity = "N";
+  for (const r of RARITIES) {
+    roll -= WEIGHT[r];
+    if (roll <= 0) {
+      rarity = r;
+      break;
+    }
   }
-  return REWARDS[0];
+  const pool = REWARDS.filter((r) => r.rarity === rarity);
+  return pool[Math.floor(Math.random() * pool.length)] ?? REWARDS[0];
 }
 
 export function rewardByKey(key: string): GachaReward | undefined {

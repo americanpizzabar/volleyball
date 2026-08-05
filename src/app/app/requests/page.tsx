@@ -35,7 +35,7 @@ export default function RequestsPage() {
   const teamId = profile?.teamId ?? null;
   const isCoach = profile?.role === "coach";
 
-  const { data: requests, loading } = useCollection<FeatureRequest>(
+  const { data: requests, loading, refresh } = useCollection<FeatureRequest>(
     () => (teamId ? requestsQuery(teamId) : null),
     [teamId],
   );
@@ -56,6 +56,7 @@ export default function RequestsPage() {
   async function vote(r: FeatureRequest) {
     if (!profile) return;
     await toggleVote(r.id, profile.uid, r.voters?.includes(profile.uid) ?? false);
+    refresh();
   }
 
   return (
@@ -140,7 +141,7 @@ export default function RequestsPage() {
                       <select
                         value={r.status}
                         onChange={(e) =>
-                          setRequestStatus(r.id, e.target.value as RequestStatus)
+                          setRequestStatus(r.id, e.target.value as RequestStatus).then(refresh)
                         }
                         className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-600"
                       >
@@ -156,7 +157,7 @@ export default function RequestsPage() {
                     {canDelete && (
                       <button
                         onClick={() => {
-                          if (confirm("この投稿を削除しますか？")) deleteRequest(r.id);
+                          if (confirm("この投稿を削除しますか？")) deleteRequest(r.id).then(refresh);
                         }}
                         className="hover:text-red-500"
                       >

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useDoc } from "@/lib/useDoc";
 import { useCollection } from "@/lib/useCollection";
@@ -31,11 +31,25 @@ export default function MatchPage() {
   const { profile } = useAuth();
   const isStaff = profile?.role === "coach" || profile?.role === "manager";
 
-  const { data: match, loading } = useDoc<Match>("matches", params.id, mapMatch);
-  const { data: events } = useCollection<StatEvent>(
+  const { data: docMatch, loading, refresh: refreshMatch } = useDoc<Match>(
+    "matches",
+    params.id,
+    mapMatch,
+  );
+  const { data: events, refresh: refreshEvents } = useCollection<StatEvent>(
     () => matchStatsQuery(params.id),
     [params.id],
   );
+  // Local authoritative copy so score/set edits reflect instantly and rapid taps
+  // accumulate (the doc hook doesn't push realtime updates). Persisted to the
+  // server in the background; the ref keeps the newest value for back-to-back taps.
+  const [match, setMatch] = useState<Match | null>(null);
+  const matchRef = useRef<Match | null>(null);
+  useEffect(() => {
+    setMatch(docMatch);
+    matchRef.current = docMatch;
+  }, [docMatch]);
+
   const [roster, setRoster] = useState<RosterPlayer[]>([]);
   const [scope, setScope] = useState<"set" | "all">("set");
   const [inputMode, setInputMode] = useState<"button" | "court" | "rally">("button");
@@ -69,29 +83,41 @@ export default function MatchPage() {
 
   const setScore = match.sets[currentSet - 1] ?? { us: 0, them: 0 };
 
-  async function changeScore(side: "us" | "them", delta: number) {
-    if (!match) return;
-    const sets = match.sets.map((s) => ({ ...s }));
-    const cur = sets[currentSet - 1] ?? { us: 0, them: 0 };
-    cur[side] = Math.max(0, cur[side] + delta);
-    sets[currentSet - 1] = cur;
-    await updateMatch(match.id, { sets });
+  // Apply an optimistic patch, keep the ref in sync for rapid taps, persist, and
+  // fall back to a server refetch if the write fails.
+  function patchMatch(patch: Partial<Match>, persist: Partial<Match>) {
+    const m = matchRef.current;
+    if (!m) return;
+    const next = { ...m, ...patch };
+    matchRef.current = next;
+    setMatch(next);
+    updateMatch(m.id, persist).catch(() => refreshMatch());
   }
 
-  async function nextSet() {
-    if (!match) return;
-    await updateMatch(match.id, {
-      sets: [...match.sets, { us: 0, them: 0 }],
-      currentSet: match.currentSet + 1,
-    });
+  function changeScore(side: "us" | "them", delta: number) {
+    const m = matchRef.current;
+    if (!m) return;
+    const sets = m.sets.map((s) => ({ ...s }));
+    const cur = { ...(sets[currentSet - 1] ?? { us: 0, them: 0 }) };
+    cur[side] = Math.max(0, cur[side] + delta);
+    sets[currentSet - 1] = cur;
+    patchMatch({ sets }, { sets });
+  }
+
+  function nextSet() {
+    const m = matchRef.current;
+    if (!m) return;
+    const sets = [...m.sets, { us: 0, them: 0 }];
+    const currentSetNo = m.currentSet + 1;
+    patchMatch({ sets, currentSet: currentSetNo }, { sets, currentSet: currentSetNo });
     setScope("set");
   }
 
-  async function toggleFinish() {
-    if (!match) return;
-    await updateMatch(match.id, {
-      status: match.status === "live" ? "finished" : "live",
-    });
+  function toggleFinish() {
+    const m = matchRef.current;
+    if (!m) return;
+    const status = m.status === "live" ? "finished" : "live";
+    patchMatch({ status }, { status });
   }
 
   async function handleRecord(
@@ -114,6 +140,7 @@ export default function MatchPage() {
       x,
       y,
     });
+    refreshEvents(); // reflect the new stat in the aggregation + shot chart
   }
 
   function exportCodes() {
@@ -266,7 +293,7 @@ export default function MatchPage() {
               <button
                 key={e.id}
                 onClick={() => {
-                  if (confirm("この記録を取り消しますか？")) deleteStat(e.id);
+                  if (confirm("この記録を取り消しますか？")) deleteStat(e.id).then(refreshEvents);
                 }}
                 className="chip bg-slate-100 text-slate-600 ring-1 ring-slate-200"
                 title={`${SKILL_LABELS[e.skill]}/${resultLabel(e.skill, e.result)}`}

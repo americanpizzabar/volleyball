@@ -33,7 +33,7 @@ const NAV: NavItem[] = [
  * mobile-first chrome (header + bottom tab bar).
  */
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { user, profile, team, loading, configured } = useAuth();
+  const { user, profile, team, loading, configured, refreshProfile } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -47,6 +47,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [loading, configured, user, profile, router]);
 
   if (!configured) return <SetupNotice />;
+  // Profile failed to load (signed in but no row came back) — offer a retry
+  // instead of spinning forever.
+  if (!loading && user && !profile) return <ProfileError onRetry={refreshProfile} />;
   if (loading || !user || !profile?.teamId) return <FullScreenLoader />;
 
   return (
@@ -69,9 +72,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-5 pb-24">{children}</main>
+      <main className="flex-1 px-4 py-5 pb-28">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-slate-200 bg-white/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-lg border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="grid grid-cols-5">
           {NAV.map((item) => {
             const active =
@@ -83,10 +86,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition ${
+                  className={`relative flex min-h-[52px] flex-col items-center justify-center gap-1 text-[11px] font-medium transition ${
                     active ? "text-brand-600" : "text-slate-400"
                   }`}
                 >
+                  {active && (
+                    <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-brand-600" />
+                  )}
                   {item.icon}
                   {item.label}
                 </Link>
@@ -111,6 +117,24 @@ function SetupNotice() {
         環境変数を設定してください。手順は{" "}
         <code className="rounded bg-slate-100 px-1">NEON_SETUP.md</code> を参照。
       </p>
+      <button onClick={() => window.location.reload()} className="btn-primary mt-2">
+        再読み込み
+      </button>
+    </div>
+  );
+}
+
+function ProfileError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="text-4xl">⚠️</div>
+      <h1 className="text-lg font-bold text-slate-900">読み込みに失敗しました</h1>
+      <p className="text-sm text-slate-500">
+        通信環境をご確認のうえ、もう一度お試しください。
+      </p>
+      <button onClick={onRetry} className="btn-primary">
+        再読み込み
+      </button>
     </div>
   );
 }

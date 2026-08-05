@@ -32,7 +32,7 @@ export default function VideoSection({
   canUpload: boolean;
   me: Me;
 }) {
-  const { data: videos } = useCollection<GrowthVideo>(
+  const { data: videos, refresh } = useCollection<GrowthVideo>(
     () => videosByUserQuery(targetUid),
     [targetUid],
   );
@@ -74,6 +74,7 @@ export default function VideoSection({
       setFile(null);
       setTitle("");
       setTag("");
+      refresh(); // show the newly uploaded clip
     } catch {
       setError("アップロードに失敗しました。Vercel Blobの設定（BLOB_READ_WRITE_TOKEN）をご確認ください。");
     }
@@ -121,7 +122,7 @@ export default function VideoSection({
         />
       ) : (
         sorted.map((v) => (
-          <VideoCard key={v.id} video={v} me={me} canDelete={canUpload || me.isCoach} />
+          <VideoCard key={v.id} video={v} me={me} canDelete={canUpload || me.isCoach} onChanged={refresh} />
         ))
       )}
     </div>
@@ -132,26 +133,32 @@ function VideoCard({
   video,
   me,
   canDelete,
+  onChanged,
 }: {
   video: GrowthVideo;
   me: Me;
   canDelete: boolean;
+  onChanged: () => void;
 }) {
   const [comment, setComment] = useState("");
   const [sending, setSending] = useState(false);
 
   async function send() {
-    if (!comment.trim()) return;
+    if (sending || !comment.trim()) return; // guard double-Enter
     setSending(true);
-    await addVideoComment(video.id, {
-      id: cryptoId(),
-      authorId: me.uid,
-      authorName: me.name + (me.isCoach ? "（指導者）" : ""),
-      text: comment.trim(),
-      at: Date.now(),
-    });
-    setComment("");
-    setSending(false);
+    try {
+      await addVideoComment(video.id, {
+        id: cryptoId(),
+        authorId: me.uid,
+        authorName: me.name + (me.isCoach ? "（指導者）" : ""),
+        text: comment.trim(),
+        at: Date.now(),
+      });
+      setComment("");
+      onChanged(); // show the new comment
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -169,7 +176,7 @@ function VideoCard({
         {canDelete && (
           <button
             onClick={() => {
-              if (confirm("この動画を削除しますか？")) deleteVideo(video);
+              if (confirm("この動画を削除しますか？")) deleteVideo(video).then(onChanged);
             }}
             className="text-xs text-slate-400 hover:text-red-500"
           >

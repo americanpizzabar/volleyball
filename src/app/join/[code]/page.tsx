@@ -13,7 +13,7 @@ export default function JoinPage() {
   const params = useParams<{ code: string }>();
   const code = (params.code ?? "").toUpperCase();
   const router = useRouter();
-  const { user, profile, signUp, signIn, loading } = useAuth();
+  const { user, profile, signUp, loading, refreshProfile } = useAuth();
 
   const [teamName, setTeamName] = useState<string | null>(null);
   const [checking, setChecking] = useState(true);
@@ -46,6 +46,7 @@ export default function JoinPage() {
 
   async function join(uid: string) {
     await joinTeamByCode(code, uid, role);
+    await refreshProfile(); // pick up the joined team before navigating
     router.replace("/app");
   }
 
@@ -59,8 +60,7 @@ export default function JoinPage() {
     setBusy(true);
     setError("");
     try {
-      await signUp(email, password, displayName.trim());
-      await signIn(email, password); // サインアップ後そのままログイン
+      await signUp(email, password, displayName.trim()); // establishes the session
       await join(""); // uid はサーバー側セッションから解決される
     } catch (err) {
       setError(authErrorMessage(err));

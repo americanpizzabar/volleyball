@@ -14,6 +14,7 @@ import {
 } from "../mappers";
 import type { Goal, GoalStatus, GrowthVideo, Match, RequestStatus, Role, Team, UserProfile, VideoComment } from "../types";
 import type { Skill } from "../stats";
+import { COIN_PER_JOURNAL, COIN_PER_NUTRITION, PULL_COST } from "../gacha";
 
 // ---- helpers -----------------------------------------------------------
 
@@ -423,12 +424,15 @@ export async function createRequest(data: {
   return rows[0].id as string;
 }
 
-export async function toggleVote(id: string, _uid: string, hasVoted: boolean): Promise<void> {
+export async function toggleVote(id: string, _uid: string, _hasVoted: boolean): Promise<void> {
   const c = await ctx();
   const rows = (await sql.query("select voters from requests where id = $1 and team_id = $2", [id, c.teamId])) as Row[];
   if (!rows[0]) throw new Error("リクエストが見つかりません。");
+  // Derive the toggle from authoritative server state (not the client's stale
+  // `hasVoted`) so a vote can never be duplicated or lost on a stale UI.
   const current = (rows[0].voters as string[]) ?? [];
-  const voters = hasVoted ? current.filter((v) => v !== c.uid) : [...current, c.uid];
+  const has = current.includes(c.uid);
+  const voters = has ? current.filter((v) => v !== c.uid) : [...current, c.uid];
   await sql.query("update requests set voters = $1::jsonb where id = $2 and team_id = $3", [
     JSON.stringify(voters), id, c.teamId,
   ]);
@@ -531,6 +535,7 @@ export async function setRating(
      values ($1, $2, jsonb_build_object($3::text, $4::numeric), now())
      on conflict (user_id) do update
        set ${column} = skill_sheets.${column} || jsonb_build_object($3::text, $4::numeric),
+           team_id = excluded.team_id,
            updated_at = now()`,
     [userId, teamId, skillKey, value],
   );
@@ -611,10 +616,11 @@ export async function deleteVideo(video: GrowthVideo): Promise<void> {
 export async function createGoal(data: Omit<Goal, "id" | "createdAt">): Promise<string> {
   const c = await ctx();
   assertTeam(c, data.teamId);
+  // Bind ownership to the session user (don't trust client-supplied ids).
   const rows = (await sql.query(
     `insert into goals (team_id, user_id, user_name, title, metric, practice_ids, due_date, reflection, status)
      values ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9) returning id`,
-    [data.teamId, data.userId, data.userName, data.title, data.metric,
+    [data.teamId, c.uid, c.name || data.userName, data.title, data.metric,
      JSON.stringify(data.practiceIds), data.dueDate, data.reflection, data.status],
   )) as Row[];
   return rows[0].id as string;
@@ -671,6 +677,20 @@ export async function createGachaPull(data: {
 }): Promise<void> {
   const c = await ctx();
   assertTeam(c, data.teamId);
+  // Enforce the coin balance server-side (client display could be stale/forged):
+  // coins = journals*10 + nutrition*5 − pulls*30, all counted for this user.
+  const counts = (await sql.query(
+    `select
+       (select count(*) from journals where author_id = $1 and team_id = $2) as journals,
+       (select count(*) from nutrition_logs where user_id = $1 and team_id = $2) as nutrition,
+       (select count(*) from gacha_pulls where user_id = $1 and team_id = $2) as pulls`,
+    [c.uid, c.teamId],
+  )) as Row[];
+  const journals = Number(counts[0]?.journals ?? 0);
+  const nutrition = Number(counts[0]?.nutrition ?? 0);
+  const pulls = Number(counts[0]?.pulls ?? 0);
+  const coins = journals * COIN_PER_JOURNAL + nutrition * COIN_PER_NUTRITION - pulls * PULL_COST;
+  if (coins < PULL_COST) throw new Error("コインが不足しています。");
   await sql.query(
     "insert into gacha_pulls (team_id, user_id, reward_key, rarity) values ($1,$2,$3,$4)",
     [data.teamId, c.uid, data.rewardKey, data.rarity],

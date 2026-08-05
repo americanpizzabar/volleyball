@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { authClient } from "@/lib/auth/client";
 import { authErrorMessage } from "@/lib/auth-errors";
-import { Spinner } from "@/components/ui";
+import { FullScreenLoader, Spinner } from "@/components/ui";
 
 function ResetPasswordInner() {
   const router = useRouter();
@@ -101,7 +101,7 @@ function ResetPasswordInner() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<FullScreenLoader />}>
       <ResetPasswordInner />
     </Suspense>
   );

@@ -37,7 +37,7 @@ export default function GachaPage() {
     () => (teamId ? nutritionLogsQuery(teamId) : null),
     [teamId],
   );
-  const { data: pulls, loading: l3 } = useCollection<GachaPull>(
+  const { data: pulls, loading: l3, refresh: refreshPulls } = useCollection<GachaPull>(
     () => (uid ? gachaPullsByUserQuery(uid) : null),
     [uid],
   );
@@ -67,6 +67,7 @@ export default function GachaPage() {
         rewardKey: reward.key,
         rarity: reward.rarity,
       });
+      refreshPulls(); // reflect the new coin balance + collection
       setTimeout(() => {
         setReveal(reward);
         if (reward.rarity === "UR" || reward.rarity === "SR") playLevelUp();

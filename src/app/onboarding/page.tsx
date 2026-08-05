@@ -10,7 +10,7 @@ import { FullScreenLoader, Spinner } from "@/components/ui";
 type Mode = "choose" | "create" | "join";
 
 export default function OnboardingPage() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("choose");
   const [teamName, setTeamName] = useState("");
@@ -34,6 +34,7 @@ export default function OnboardingPage() {
     setError("");
     try {
       await createTeam(teamName.trim(), user.id);
+      await refreshProfile(); // pick up the new team before the app gate re-checks
       router.replace("/app");
     } catch {
       setError("チームの作成に失敗しました。");
@@ -48,6 +49,7 @@ export default function OnboardingPage() {
     setError("");
     try {
       await joinTeamByCode(code.trim(), user.id, role);
+      await refreshProfile(); // pick up the joined team before the app gate re-checks
       router.replace("/app");
     } catch (err) {
       setError(err instanceof Error ? err.message : "参加に失敗しました。");

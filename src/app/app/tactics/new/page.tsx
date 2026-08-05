@@ -19,7 +19,7 @@ export default function NewTacticPage() {
   }
 
   async function handleSave(draft: TacticDraft) {
-    if (!profile?.teamId) return;
+    if (!profile?.teamId) throw new Error("チームが設定されていません。");
     const id = await createTactic({
       teamId: profile.teamId,
       createdBy: profile.uid,

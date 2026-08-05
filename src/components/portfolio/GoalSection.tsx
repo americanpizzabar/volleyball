@@ -35,7 +35,7 @@ export default function GoalSection({
   targetName: string;
   canEdit: boolean;
 }) {
-  const { data: goals } = useCollection<Goal>(
+  const { data: goals, refresh } = useCollection<Goal>(
     () => goalsByUserQuery(targetUid),
     [targetUid],
   );
@@ -69,7 +69,10 @@ export default function GoalSection({
             targetUid={targetUid}
             targetName={targetName}
             practices={practices}
-            onDone={() => setOpen(false)}
+            onDone={() => {
+              setOpen(false);
+              refresh();
+            }}
           />
         ) : (
           <button onClick={() => setOpen(true)} className="btn-primary w-full">
@@ -90,6 +93,7 @@ export default function GoalSection({
             goal={g}
             practiceTitle={practiceTitle}
             canEdit={canEdit}
+            onChanged={refresh}
           />
         ))
       )}
@@ -206,10 +210,12 @@ function GoalCard({
   goal,
   practiceTitle,
   canEdit,
+  onChanged,
 }: {
   goal: Goal;
   practiceTitle: Map<string, string>;
   canEdit: boolean;
+  onChanged: () => void;
 }) {
   const [reflection, setReflection] = useState(goal.reflection);
   const [editing, setEditing] = useState(false);
@@ -223,7 +229,7 @@ function GoalCard({
         {canEdit && (
           <button
             onClick={() => {
-              if (confirm("この目標を削除しますか？")) deleteGoal(goal.id);
+              if (confirm("この目標を削除しますか？")) deleteGoal(goal.id).then(onChanged);
             }}
             className="text-xs text-slate-400 hover:text-red-500"
           >
@@ -267,6 +273,7 @@ function GoalCard({
               onClick={async () => {
                 await updateGoal(goal.id, { reflection });
                 setEditing(false);
+                onChanged();
               }}
               className="btn-primary px-3 py-1.5 text-xs"
             >
@@ -291,7 +298,7 @@ function GoalCard({
           {(Object.keys(GOAL_STATUS_LABELS) as GoalStatus[]).map((s) => (
             <button
               key={s}
-              onClick={() => setGoalStatus(goal.id, s)}
+              onClick={() => setGoalStatus(goal.id, s).then(onChanged)}
               className={`chip flex-1 justify-center ring-1 transition ${
                 goal.status === s
                   ? "bg-brand-600 text-white ring-brand-600"

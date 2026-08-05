@@ -19,11 +19,15 @@ export default function RosterPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!teamId) return;
-    getTeamMembers(teamId).then((m) => {
-      setMembers(m as UserProfile[]);
+    if (!teamId) {
+      setMembers([]);
       setLoading(false);
-    });
+      return;
+    }
+    setLoading(true);
+    getTeamMembers(teamId)
+      .then((m) => setMembers(m as UserProfile[]))
+      .finally(() => setLoading(false));
   }, [teamId]);
 
   const { data: sheets } = useCollection<SkillSheet>(

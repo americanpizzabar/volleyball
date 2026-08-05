@@ -23,8 +23,8 @@ export default function SkillSheet({
   canEditSelf: boolean;
   canEditCoach: boolean;
 }) {
-  const { data: sheet } = useDoc<Sheet>("skill_sheets", targetUid, mapSkillSheet, "user_id");
-  const { data: allSheets } = useCollection<Sheet>(
+  const { data: sheet, refresh } = useDoc<Sheet>("skill_sheets", targetUid, mapSkillSheet, "user_id");
+  const { data: allSheets, refresh: refreshAll } = useCollection<Sheet>(
     () => skillSheetsByTeamQuery(teamId),
     [teamId],
   );
@@ -38,8 +38,14 @@ export default function SkillSheet({
   );
   const groups = skillGroupsForPosition(position);
 
-  const self = sheet?.self ?? {};
-  const coach = sheet?.coach ?? {};
+  // Local, optimistic copies so taps reflect immediately (the doc doesn't push
+  // updates); re-synced whenever the server value comes back.
+  const [self, setSelf] = useState<Record<string, number>>({});
+  const [coach, setCoach] = useState<Record<string, number>>({});
+  useEffect(() => {
+    setSelf(sheet?.self ?? {});
+    setCoach(sheet?.coach ?? {});
+  }, [sheet]);
 
   const [levelUp, setLevelUp] = useState<{ label: string; from: number; to: number } | null>(null);
 
@@ -50,7 +56,14 @@ export default function SkillSheet({
       playLevelUp();
       setTimeout(() => setLevelUp(null), 1600);
     }
-    setRating(targetUid, teamId, side, key, v);
+    if (side === "self") setSelf((m) => ({ ...m, [key]: v }));
+    else setCoach((m) => ({ ...m, [key]: v }));
+    setRating(targetUid, teamId, side, key, v)
+      .then(() => {
+        refresh();
+        refreshAll();
+      })
+      .catch(() => refresh());
   }
 
   // Radar: this player's values vs. team average.

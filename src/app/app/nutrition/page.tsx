@@ -31,7 +31,7 @@ export default function NutritionPage() {
     getTeamMembers(teamId).then((m) => setMemberCount(Math.max(1, (m as UserProfile[]).length)));
   }, [teamId]);
 
-  const { data: logs, loading } = useCollection<NutritionLog>(
+  const { data: logs, loading, refresh } = useCollection<NutritionLog>(
     () => (teamId ? nutritionLogsQuery(teamId) : null),
     [teamId],
   );
@@ -90,6 +90,7 @@ export default function NutritionPage() {
         power,
         combo: combo?.label ?? "",
       });
+      refresh(); // update boss HP, damage, my-contribution and ranking
       setFlash({ power, combo: combo?.label ?? "" });
       if (combo) playLevelUp();
       else playKill();

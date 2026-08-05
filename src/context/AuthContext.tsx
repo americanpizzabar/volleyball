@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -23,6 +24,8 @@ interface AuthContextValue {
   team: Team | null;
   loading: boolean;
   configured: boolean;
+  /** Re-fetch the current user's profile + team (e.g. after creating/joining a team). */
+  refreshProfile: () => Promise<void>;
   signUp: (
     email: string,
     password: string,
@@ -66,10 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setConfigured(false));
   }, []);
 
-  // Load (or lazily create) the profile row whenever the signed-in user changes.
-  useEffect(() => {
-    if (isPending) return; // wait for the session to settle first
-    let cancelled = false;
+  // Load (or lazily create) the profile row for the current user.
+  const loadProfile = useCallback(async () => {
     if (!uid) {
       setProfile(null);
       setTeam(null);
@@ -77,21 +78,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setProfileLoading(true);
-    getOrCreateProfile()
-      .then((p) => {
-        if (cancelled) return;
-        setProfile(p);
-        setProfileLoading(false);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setProfile(null);
-        setProfileLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [uid, isPending]);
+    try {
+      setProfile(await getOrCreateProfile());
+    } catch {
+      setProfile(null);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [uid]);
+
+  // Refetch whenever the signed-in user changes (once the session has settled).
+  useEffect(() => {
+    if (isPending) return;
+    void loadProfile();
+  }, [isPending, loadProfile]);
 
   // Load the user's team whenever the team id changes.
   useEffect(() => {
@@ -118,6 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       team,
       loading,
       configured,
+      refreshProfile: loadProfile,
       async signUp(email, password, displayName) {
         const res = await authClient.signUp.email({ email, password, name: displayName });
         if (res.error) throw new Error(errMessage(res.error, "登録に失敗しました。"));
@@ -150,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await authClient.signOut();
       },
     }),
-    [user, profile, team, loading, configured],
+    [user, profile, team, loading, configured, loadProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -58,15 +58,26 @@ export default function LivePage() {
   }
 
   // 試合の新しいナイスプレーを自動で流す
-  const { data: events, loading } = useCollection<StatEvent>(
+  const { data: events, loading, refresh } = useCollection<StatEvent>(
     () => (teamId ? teamStatsQuery(teamId) : null),
     [teamId],
   );
-  const seen = useRef<Set<string> | null>(null);
+  // Realtime was removed in the Neon migration; poll so new plays flow in during
+  // a live match (this also picks up plays recorded on another device).
   useEffect(() => {
-    if (seen.current === null) {
-      // 初回は既存を既読扱い（過去分を流さない）
+    if (!teamId) return;
+    const t = setInterval(refresh, 15000);
+    return () => clearInterval(t);
+  }, [teamId, refresh]);
+
+  const seeded = useRef(false);
+  const seen = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (loading) return;
+    if (!seeded.current) {
+      // Seed from the loaded data so existing plays aren't replayed on entry.
       seen.current = new Set(events.map((e) => e.id));
+      seeded.current = true;
       return;
     }
     for (const e of events) {
@@ -79,7 +90,7 @@ export default function LivePage() {
         setTimeout(() => setBanner(null), 2400);
       }
     }
-  }, [events, burst]);
+  }, [events, loading, burst]);
 
   if (loading) return <FullScreenLoader />;
 
