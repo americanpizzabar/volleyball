@@ -46,7 +46,7 @@ export function buildCards(events: StatEvent[]): PlayCard[] {
     let rarity = def.base;
     // 上位プレー(SR)は一定確率でUR昇格、Rも稀にUR
     const r = hash01(e.id);
-    if ((def.base === "SR" && r > 0.8) || (def.base === "R" && r > 0.94)) rarity = "UR";
+    if ((def.base === "SR" && r > 0.92) || (def.base === "R" && r > 0.98)) rarity = "UR";
     cards.push({
       id: e.id,
       rarity,

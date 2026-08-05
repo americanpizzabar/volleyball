@@ -49,11 +49,19 @@ export function mealPower(keys: string[]): { power: number; combo: Combo | null 
 // ===== 週・ボス =====
 const DAY = 86400000;
 
-/** その週(月曜始まり)の開始日 YYYY-MM-DD。 */
+/** ローカル日付を YYYY-MM-DD に整形（toISOStringのUTCずれを避ける）。 */
+export function localDate(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+/** その週(月曜始まり)の開始日 YYYY-MM-DD（ローカル基準）。 */
 export function weekStart(d = new Date()): string {
   const day = (d.getDay() + 6) % 7; // 月=0
-  const monday = new Date(d.getTime() - day * DAY);
-  return monday.toISOString().slice(0, 10);
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+  return localDate(monday);
 }
 
 /** 通算の週インデックス（ボス選択用）。 */

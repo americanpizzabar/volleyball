@@ -9,6 +9,7 @@ import {
   FOODS,
   bossForWeek,
   bossMaxHp,
+  localDate,
   mealPower,
   weekStart,
 } from "@/lib/nutrition";
@@ -18,7 +19,7 @@ import { playKill, playLevelUp } from "@/lib/sfx";
 import { FullScreenLoader, PageHeader, Spinner } from "@/components/ui";
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDate();
 }
 
 export default function NutritionPage() {

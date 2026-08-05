@@ -17,12 +17,12 @@ export default function Dashboard() {
     () => (teamId ? practicesQuery(teamId, 1) : null),
     [teamId],
   );
-  const { data: journals } = useCollection<JournalEntry>(
+  const { data: journals, loading: journalsLoading } = useCollection<JournalEntry>(
     () => (teamId ? journalsQuery(teamId) : null),
     [teamId],
   );
 
-  if (loading) return <FullScreenLoader />;
+  if (loading || journalsLoading) return <FullScreenLoader />;
   const latest = practices[0];
   const myJournals = journals.filter((j) => j.authorId === profile?.uid);
 
